@@ -206,8 +206,19 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 }
 
                 if (state.isMusicActive) {
+                    val d = resources.displayMetrics.density
+                    val pillWidthPx = 180f * d
+                    val pillHeightPx = 44f * d
+                    val currentW = if (width > 0) width.toFloat() else pillWidthPx
+                    val pillLeft = (currentW - pillWidthPx) / 2f
+                    val pillRight = (currentW + pillWidthPx) / 2f
+                    val isTouchOnPill = event.x in pillLeft..pillRight && event.y in 0f..pillHeightPx
+
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
+                            if (!isTouchOnPill) {
+                                return false
+                            }
                             startRawX = event.rawX
                             startRawY = event.rawY
                             startTime = System.currentTimeMillis()
@@ -232,7 +243,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                                 val dx = kotlin.math.abs(event.rawX - startRawX)
                                 val dy = kotlin.math.abs(event.rawY - startRawY)
                                 val isTap = duration < longPressTimeout && dx <= touchSlop && dy <= touchSlop
-                                if (isTap) {
+                                if (isTap && isTouchOnPill) {
                                     container.islandViewModel.onOpenMusicAppClicked()
                                 }
                             }

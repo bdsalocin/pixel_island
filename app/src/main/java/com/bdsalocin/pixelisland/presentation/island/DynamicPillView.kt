@@ -62,6 +62,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -142,6 +143,7 @@ fun DynamicPillView(
 
     val density = LocalDensity.current
     val context = LocalContext.current
+    val view = LocalView.current
     val coroutineScope = rememberCoroutineScope()
 
     var isDraggingCard by remember { mutableStateOf(false) }
@@ -276,35 +278,8 @@ fun DynamicPillView(
                                                     coroutineScope.launch {
                                                         isDraggingCard = false
                                                         if (shouldDismiss) {
-                                                            HapticFeedbackHelper.performConfirmationFeedback(context)
+                                                            HapticFeedbackHelper.performConfirmationFeedback(context, view)
                                                             viewModel.collapseIsland()
-                                                            launch {
-                                                                pillBottomAnim.animateTo(
-                                                                    targetValue = 40f,
-                                                                    animationSpec = spring(
-                                                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                                                        stiffness = 500f
-                                                                    )
-                                                                )
-                                                            }
-                                                            launch {
-                                                                pillWidthAnim.animateTo(
-                                                                    targetValue = 180f,
-                                                                    animationSpec = spring(
-                                                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                                                        stiffness = 500f
-                                                                    )
-                                                                )
-                                                            }
-                                                            launch {
-                                                                pillCornerAnim.animateTo(
-                                                                    targetValue = 9999f,
-                                                                    animationSpec = spring(
-                                                                        dampingRatio = Spring.DampingRatioNoBouncy,
-                                                                        stiffness = 500f
-                                                                    )
-                                                                )
-                                                            }
                                                         } else {
                                                             launch {
                                                                 pillBottomAnim.animateTo(
@@ -343,7 +318,7 @@ fun DynamicPillView(
                                                             pillBottomAnim.animateTo(
                                                                 targetValue = 238f,
                                                                 animationSpec = spring(
-                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
                                                                     stiffness = 450f
                                                                 )
                                                             )
@@ -352,7 +327,7 @@ fun DynamicPillView(
                                                             pillWidthAnim.animateTo(
                                                                 targetValue = 384f,
                                                                 animationSpec = spring(
-                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
                                                                     stiffness = 450f
                                                                 )
                                                             )
@@ -361,7 +336,7 @@ fun DynamicPillView(
                                                             pillCornerAnim.animateTo(
                                                                 targetValue = 40f,
                                                                 animationSpec = spring(
-                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
                                                                     stiffness = 450f
                                                                 )
                                                             )
@@ -556,7 +531,7 @@ fun DynamicPillView(
                                                     viewModel.onOpenMusicAppClicked()
                                                 },
                                                 onLongPress = {
-                                                    HapticFeedbackHelper.performTapticFeedback(context)
+                                                    HapticFeedbackHelper.performTapticFeedback(context, view)
                                                     viewModel.expandIsland()
                                                 }
                                             )
@@ -663,26 +638,29 @@ private fun MediaProgressBarScrubber(
                 .pointerInput(durationMs) {
                     if (durationMs <= 0L) return@pointerInput
                     awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val barWidth = size.width.toFloat()
-                        if (barWidth > 0f) {
-                            isScrubbing = true
-                            scrubFraction = (down.position.x / barWidth).coerceIn(0f, 1f)
-                        }
-                        while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                            if (!change.pressed) {
-                                change.consume()
-                                break
+                        try {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val barWidth = size.width.toFloat()
+                            if (barWidth > 0f) {
+                                isScrubbing = true
+                                scrubFraction = (down.position.x / barWidth).coerceIn(0f, 1f)
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!change.pressed) {
+                                        change.consume()
+                                        break
+                                    }
+                                    change.consume()
+                                    val currentFrac = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                    scrubFraction = currentFrac
+                                }
+                                val finalTargetMs = (scrubFraction * durationMs).toLong()
+                                onSeek(finalTargetMs)
                             }
-                            change.consume()
-                            val currentFrac = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
-                            scrubFraction = currentFrac
+                        } finally {
+                            isScrubbing = false
                         }
-                        val finalTargetMs = (scrubFraction * durationMs).toLong()
-                        isScrubbing = false
-                        onSeek(finalTargetMs)
                     }
                 },
             contentAlignment = Alignment.Center

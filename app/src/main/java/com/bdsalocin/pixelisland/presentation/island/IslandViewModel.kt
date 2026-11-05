@@ -53,16 +53,20 @@ class IslandViewModel(
                 } else if (track != null) {
                     // Piste en pause
                     if (lastWasPlaying) {
-                        // Vient tout juste de passer de Lecture à Pause : délai de grâce de 5 secondes
+                        // Vient tout juste de passer de Lecture à Pause : délai de grâce de 5 secondes si non déployé
                         lastWasPlaying = false
                         _uiState.update { 
                             it.copy(mediaTrack = track, isPausedGraceActive = true) 
                         }
                         pauseDismissJob?.cancel()
-                        pauseDismissJob = viewModelScope.launch {
-                            delay(5000)
-                            _uiState.update { 
-                                it.copy(isPausedGraceActive = false, isExpanded = false) 
+                        if (!_uiState.value.isExpanded) {
+                            pauseDismissJob = viewModelScope.launch {
+                                delay(5000)
+                                if (!_uiState.value.isExpanded) {
+                                    _uiState.update { 
+                                        it.copy(isPausedGraceActive = false) 
+                                    }
+                                }
                             }
                         }
                     } else {
@@ -103,18 +107,34 @@ class IslandViewModel(
         val now = System.currentTimeMillis()
         if (now - lastToggleTime < 250) return
         lastToggleTime = now
-        _uiState.update { it.copy(isExpanded = !it.isExpanded) }
+        if (_uiState.value.isExpanded) {
+            collapseIsland()
+        } else {
+            expandIsland()
+        }
     }
 
     fun expandIsland() {
         if (!_uiState.value.isExpanded) {
-            _uiState.update { it.copy(isExpanded = true) }
+            pauseDismissJob?.cancel()
+            _uiState.update { it.copy(isExpanded = true, isPausedGraceActive = false) }
         }
     }
 
     fun collapseIsland() {
         if (_uiState.value.isExpanded) {
             _uiState.update { it.copy(isExpanded = false) }
+            val track = _uiState.value.mediaTrack
+            if (track != null && !track.isPlaying) {
+                _uiState.update { it.copy(isPausedGraceActive = true) }
+                pauseDismissJob?.cancel()
+                pauseDismissJob = viewModelScope.launch {
+                    delay(5000)
+                    if (!_uiState.value.isExpanded) {
+                        _uiState.update { it.copy(isPausedGraceActive = false) }
+                    }
+                }
+            }
         }
     }
 
