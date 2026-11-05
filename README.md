@@ -1,26 +1,20 @@
-# Pixel Island pour Google Pixel 8 Pro
+# Pixel Island
 
-Application d'îlot dynamique sur mesure pour Google Pixel 8 Pro, développée en Kotlin avec Jetpack Compose et une architecture propre (Clean Architecture).
+Une expérience d'îlot dynamique interactive et fluide, pensée sur mesure pour le Google Pixel 8 Pro.
 
-## Fonctionnalités principales
+Pixel Island transforme le poinçon de la caméra frontale en un espace vivant qui réagit en temps réel à vos applications. Contrairement aux solutions génériques, cette application tire parti de l'emplacement matériel exact du capteur photo et de la dalle OLED pour donner l'impression d'une fonctionnalité intégrée nativement dans le smartphone.
 
-1. Ancrage matériel absolu
-La capsule est centrée sur le poinçon de la caméra frontale du Pixel 8 Pro. Grâce au noir OLED absolu (#000000), le capteur physique et l'affichage fusionnent totalement.
+## Ce que propose Pixel Island
 
-2. Maintien en mode paysage
-Lors des rotations d'écran (90° et 270°), l'îlot reste physiquement verrouillé autour du capteur sans dériver vers le bord supérieur logique.
+* **Fusion matérielle et logicielle** : Grâce au noir OLED absolu (#000000), les pixels entourant l'objectif s'éteignent totalement. La caméra frontale devient le cœur naturel de chaque animation.
+* **Maintien autour du capteur en mode paysage** : Quand vous tournez votre smartphone à l'horizontale, l'îlot s'adapte immédiatement et reste verrouillé sur la caméra physique, sans glisser vers le haut de l'écran logique.
+* **Lecteur audio symétrique** : Dès qu'une musique démarre sur Spotify, YouTube Music ou toute autre application, la pilule s'élargit des deux côtés. Une barre d'ondes sonores vibre à gauche et la miniature de l'album s'affiche à droite.
+* **Animation de déverrouillage facial** : Au réveil de l'écran, un cercle lumineux doux enveloppe la caméra le temps de la détection, puis s'efface discrètement une fois votre visage reconnu.
+* **Animations organiques** : Les transitions s'appuient sur la physique des ressorts pour offrir un effet élastique et naturel à chaque interaction.
 
-3. Extension musicale symétrique
-Dès qu'une musique est lancée (Spotify, YouTube Music), la capsule s'ouvre de part et d'autre :
-* Onde sonore vibrante à gauche (barres d'égaliseur animées).
-* Poinçon physique au centre.
-* Pochette d'album miniature à droite.
+## Technologies utilisées
 
-4. Déverrouillage facial (Pixel Face)
-Lors du réveil de l'écran, un cercle doux entoure l'objectif avec un cadenas qui s'anime et se rétracte une fois le téléphone déverrouillé.
-
-## Clean Architecture
-
-* domain : Modèles purs (MediaTrack, IslandMode, CutoutGeometry) et cas d'usage indépendants de la plateforme.
-* data : Implémentations des référentiels (MediaRepository, BiometricRepository, DisplayCutoutRepository) et services d'arrière plan.
-* presentation : Composables Jetpack Compose, transitions élastiques (SpringSpec) et gestionnaire de fenêtre flottante.
+* **Langage** : Kotlin
+* **Interface graphique** : Jetpack Compose
+* **Gestionnaire d'affichage** : WindowManager avec affichage dans la zone de découpe matérielle
+* **Musique et médias** : MediaSessionManager
