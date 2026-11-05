@@ -36,7 +36,16 @@ jobs:
           }
 
       - name: Prepare APK filename
-        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/pixel_island.apk
+        run: |
+          find app/build -name "*.apk"
+          APK_PATH=$(find app/build -name "*.apk" | head -n 1)
+          if [ -n "$APK_PATH" ]; then
+            mkdir -p app/build/outputs/apk/debug
+            cp "$APK_PATH" app/build/outputs/apk/debug/pixel_island.apk
+          else
+            echo "::error::No APK found in app/build"
+            exit 1
+          fi
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
