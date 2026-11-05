@@ -42,9 +42,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.1.0
-          name: Pixel Island v1.1.0 APK
-          body: Mise a jour avec centrage exact Pixel 8 Pro, ecoute audio multi-lecteurs et deverrouillage facial
+          tag_name: v1.2.0
+          name: Pixel Island v1.2.0 APK
+          body: Correctif anti scintillement, stabilisation du layout overlay, Face Unlock etendu vers le bas avec cadenas anime
           files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

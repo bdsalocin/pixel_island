@@ -51,14 +51,14 @@ fun DynamicPillView(
 
     // Dimensions dynamiques : au repos, la bulle est à 0dp (masquée derrière le poinçon)
     val targetWidth = when {
-        state.isFaceUnlockActive -> 56.dp
+        state.isFaceUnlockActive -> 190.dp
         state.isExpanded -> 300.dp
-        state.isMusicActive -> 165.dp
+        state.isMusicActive -> 170.dp
         else -> 0.dp // Complètement invisible et caché au repos
     }
 
     val targetHeight = when {
-        state.isFaceUnlockActive -> 56.dp
+        state.isFaceUnlockActive -> 72.dp
         state.isExpanded -> 146.dp
         state.isMusicActive -> 34.dp
         else -> 0.dp // Complètement invisible et caché au repos
@@ -67,8 +67,8 @@ fun DynamicPillView(
     val animatedWidth by animateDpAsState(
         targetValue = targetWidth,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "PillWidthAnimation"
     )
@@ -76,21 +76,25 @@ fun DynamicPillView(
     val animatedHeight by animateDpAsState(
         targetValue = targetHeight,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "PillHeightAnimation"
     )
 
     val animatedAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = 250),
+        animationSpec = tween(durationMillis = 200),
         label = "PillAlphaAnimation"
     )
 
-    // Rayon de courbure de 38dp en mode étendu pour respecter l'arrondi d'écran du Pixel 8 Pro
+    // Rayon de courbure adapté pour respecter l'arrondi d'écran et la forme de la pilule
     val cornerRadius by animateDpAsState(
-        targetValue = if (state.isExpanded) 38.dp else 9999.dp,
+        targetValue = when {
+            state.isExpanded -> 38.dp
+            state.isFaceUnlockActive -> 36.dp
+            else -> 9999.dp
+        },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium
@@ -111,9 +115,23 @@ fun DynamicPillView(
             contentAlignment = Alignment.Center
         ) {
             when {
-                // Vue Déverrouillage Visage (Face Unlock)
+                // Vue Déverrouillage Visage (Face Unlock affiché vers le bas sous le poinçon)
                 state.isFaceUnlockActive -> {
-                    FaceUnlockScanner(status = state.biometricStatus)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(animatedHeight)
+                            .padding(horizontal = 14.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom
+                    ) {
+                        FaceUnlockScanner(
+                            status = state.biometricStatus,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 10.dp)
+                        )
+                    }
                 }
 
                 // Vue Musique Étendue
@@ -197,7 +215,7 @@ fun DynamicPillView(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
+                            .padding(horizontal = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -211,7 +229,7 @@ fun DynamicPillView(
                         }
 
                         // Centre : Espace réservé pour le poinçon de la caméra frontale
-                        Spacer(modifier = Modifier.width(28.dp))
+                        Spacer(modifier = Modifier.width(34.dp))
 
                         // Côté droit : Miniature de l'album ou icône de secours
                         val miniature = state.mediaTrack?.albumArt

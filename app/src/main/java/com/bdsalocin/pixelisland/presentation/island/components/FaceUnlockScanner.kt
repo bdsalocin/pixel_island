@@ -2,23 +2,40 @@ package com.bdsalocin.pixelisland.presentation.island.components
 
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.bdsalocin.pixelisland.domain.model.BiometricStatus
 
 @Composable
@@ -26,36 +43,125 @@ fun FaceUnlockScanner(
     status: BiometricStatus,
     modifier: Modifier = Modifier
 ) {
+    val isUnlocked = status == BiometricStatus.SUCCESS
+
+    val accentColor = when (status) {
+        BiometricStatus.SUCCESS -> Color(0xFF34D399) // Vert émeraude
+        BiometricStatus.SCANNING -> Color(0xFFA5B4FC) // Indigo doux
+        BiometricStatus.FAILED -> Color(0xFFF87171)   // Rouge corail
+        BiometricStatus.IDLE -> Color.Transparent
+    }
+
     val transition = rememberInfiniteTransition(label = "FaceScanPulse")
     val pulseScale by transition.animateFloat(
-        initialValue = 0.9f,
-        targetValue = 1.15f,
+        initialValue = 0.95f,
+        targetValue = 1.05f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 700, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Pulse"
     )
 
-    val ringColor = when (status) {
-        BiometricStatus.SUCCESS -> Color(0xFF34D399) // Vert succès
-        BiometricStatus.SCANNING -> Color(0xFF818CF8) // Indigo scan
-        BiometricStatus.FAILED -> Color(0xFFF87171)   // Rouge échec
-        BiometricStatus.IDLE -> Color.Transparent
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Cadenas animé
+        AnimatedPadlock(
+            isUnlocked = isUnlocked,
+            color = accentColor,
+            modifier = Modifier.scale(if (status == BiometricStatus.SCANNING) pulseScale else 1f)
+        )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        // Texte explicatif affiché vers le bas sous le capteur
+        Text(
+            text = when (status) {
+                BiometricStatus.SUCCESS -> "Déverrouillé"
+                BiometricStatus.SCANNING -> "Pixel Face"
+                BiometricStatus.FAILED -> "Non reconnu"
+                else -> ""
+            },
+            color = if (isUnlocked) Color(0xFF34D399) else Color.White,
+            fontSize = 13.sp,
+            fontWeight = if (isUnlocked) FontWeight.Bold else FontWeight.Medium
+        )
     }
+}
+
+@Composable
+private fun AnimatedPadlock(
+    isUnlocked: Boolean,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val shackleOffset by animateDpAsState(
+        targetValue = if (isUnlocked) (-4).dp else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "ShackleOffset"
+    )
+
+    val shackleRotation by animateFloatAsState(
+        targetValue = if (isUnlocked) -24f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "ShackleRotation"
+    )
 
     Box(
-        modifier = modifier
-            .size(56.dp)
-            .scale(if (status == BiometricStatus.SCANNING) pulseScale else 1f)
-            .border(2.dp, ringColor, CircleShape),
+        modifier = modifier.size(26.dp),
         contentAlignment = Alignment.Center
     ) {
-        // En temps réel, l'objectif physique du Pixel 8 Pro se trouve au centre exact de ce cercle
+        // Anse du cadenas
         Box(
             modifier = Modifier
-                .size(16.dp)
-                .border(1.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+                .align(Alignment.TopCenter)
+                .padding(top = 2.dp)
+                .offset(y = shackleOffset)
+                .graphicsLayer {
+                    rotationZ = shackleRotation
+                    transformOrigin = TransformOrigin(0.2f, 1f)
+                }
+                .width(13.dp)
+                .height(11.dp)
+                .border(
+                    width = 2.dp,
+                    color = color,
+                    shape = RoundedCornerShape(
+                        topStart = 7.dp,
+                        topEnd = 7.dp,
+                        bottomStart = 0.dp,
+                        bottomEnd = 0.dp
+                    )
+                )
         )
+
+        // Corps du cadenas
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 2.dp)
+                .width(17.dp)
+                .height(13.dp)
+                .clip(RoundedCornerShape(3.5.dp))
+                .background(color),
+            contentAlignment = Alignment.Center
+        ) {
+            // Trou de serrure
+            Box(
+                modifier = Modifier
+                    .size(3.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black)
+            )
+        }
     }
 }

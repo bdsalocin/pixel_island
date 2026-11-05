@@ -71,12 +71,23 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
     }
 
     private fun setupOverlayWindow() {
-        // Calcul du centrage exact pour le poinçon physique du Google Pixel 8 Pro
-        // La caméra frontale est centrée horizontalement, à environ 34dp du haut de l'écran.
+        // Centrage physique absolu sur le poinçon du Google Pixel 8 Pro
+        // Écran 1344 x 2992 px, caméra frontale centrée horizontalement à environ 30dp du haut.
         val density = resources.displayMetrics.density
         val pillHeightPx = (34 * density).toInt()
-        val defaultCutoutCenterYPx = (34 * density).toInt()
-        val initialY = defaultCutoutCenterYPx - (pillHeightPx / 2)
+        var cutoutCenterY = (30 * density).toInt()
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val cutout = windowManager.maximumWindowMetrics.windowInsets.displayCutout
+                val topRect = cutout?.boundingRectTop
+                if (topRect != null && !topRect.isEmpty) {
+                    cutoutCenterY = topRect.centerY()
+                }
+            } catch (_: Exception) {}
+        }
+
+        val initialY = (cutoutCenterY - (pillHeightPx / 2)).coerceAtLeast(0)
 
         val windowFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
@@ -95,6 +106,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             }
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            x = 0
             y = initialY
         }
 
@@ -106,26 +118,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 DynamicPillView(
                     viewModel = container.islandViewModel
                 )
-            }
-
-            // Réajustement dynamique au pixel près dès que les métriques système du Pixel 8 Pro sont fournies
-            setOnApplyWindowInsetsListener { _, insets ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    val cutout = insets.displayCutout
-                    val topRect = cutout?.boundingRectTop
-                    if (topRect != null && !topRect.isEmpty) {
-                        val realCenterY = topRect.centerY()
-                        val computedY = realCenterY - (pillHeightPx / 2)
-                        val params = this@IslandOverlayService.layoutParams
-                        if (params.y != computedY) {
-                            params.y = computedY
-                            try {
-                                windowManager.updateViewLayout(this, params)
-                            } catch (_: Exception) {}
-                        }
-                    }
-                }
-                insets
             }
         }
 

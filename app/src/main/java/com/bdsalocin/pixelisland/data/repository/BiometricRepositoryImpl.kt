@@ -10,6 +10,7 @@ import com.bdsalocin.pixelisland.domain.model.BiometricStatus
 import com.bdsalocin.pixelisland.domain.repository.BiometricRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -21,23 +22,35 @@ class BiometricRepositoryImpl(
 ) : BiometricRepository {
 
     private val scope = CoroutineScope(Dispatchers.Main.immediate)
+    private var scanTimeoutJob: Job? = null
+    private var dismissJob: Job? = null
 
     override fun observeUnlockEvents(): Flow<BiometricStatus> = callbackFlow {
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_ON -> {
+                        dismissJob?.cancel()
+                        scanTimeoutJob?.cancel()
                         trySend(BiometricStatus.SCANNING)
+                        scanTimeoutJob = scope.launch {
+                            delay(3500)
+                            trySend(BiometricStatus.IDLE)
+                        }
                     }
                     Intent.ACTION_USER_PRESENT -> {
+                        scanTimeoutJob?.cancel()
+                        dismissJob?.cancel()
                         trySend(BiometricStatus.SUCCESS)
-                        // Disparaître en douceur après validation
-                        scope.launch {
-                            delay(1400)
+                        // Afficher l'icône de cadenas ouvert et la validation pendant 1,8 seconde
+                        dismissJob = scope.launch {
+                            delay(1800)
                             trySend(BiometricStatus.IDLE)
                         }
                     }
                     Intent.ACTION_SCREEN_OFF -> {
+                        scanTimeoutJob?.cancel()
+                        dismissJob?.cancel()
                         trySend(BiometricStatus.IDLE)
                     }
                 }
