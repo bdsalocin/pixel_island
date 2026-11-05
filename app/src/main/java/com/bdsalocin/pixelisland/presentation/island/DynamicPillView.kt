@@ -66,7 +66,7 @@ fun DynamicPillView(
     val isVisible = state.isMusicActive || state.isFaceUnlockActive || state.isExpanded
 
     // Bornes supérieure et inférieure de l'îlot.
-    // En mode actif, le bord supérieur reste toujours ancré à 0dp (autour du poinçon) pour éliminer tout sursaut.
+    // Le bord supérieur reste ancré à 0dp pour supprimer tout saut vertical.
     val targetTop = when {
         state.isFaceUnlockActive -> 0.dp
         state.isExpanded -> 0.dp
@@ -75,15 +75,15 @@ fun DynamicPillView(
     }
 
     val targetBottom = when {
-        state.isFaceUnlockActive -> 80.dp // Format carré arrondi type iPhone (80dp)
-        state.isExpanded -> 180.dp       // Carte agrandie ergonomique et fluide
-        state.isMusicActive -> 40.dp     // Hauteur compacte 40dp centrée sur le poinçon
-        else -> 28.dp                    // Repli vers le centre du poinçon (y=20dp)
+        state.isFaceUnlockActive -> 80.dp  // Format carré arrondi type iPhone (80dp)
+        state.isExpanded -> 204.dp        // Carte agrandie généreuse et abaissée sous le poinçon
+        state.isMusicActive -> 40.dp      // Hauteur compacte 40dp centrée sur le poinçon
+        else -> 28.dp                     // Repli vers le centre du poinçon (y=20dp)
     }
 
     val targetWidth = when {
         state.isFaceUnlockActive -> 80.dp  // Format carré 80dp sur 80dp
-        state.isExpanded -> 320.dp         // 320dp pour la carte multimédia
+        state.isExpanded -> 324.dp         // Largeur agrandie 324dp pour une parfaite lisibilité
         state.isMusicActive -> 180.dp     // 180dp pour la pilule musique compacte
         else -> 0.dp                      // Rétraction à 0dp en largeur
     }
@@ -96,10 +96,10 @@ fun DynamicPillView(
         else -> IslandStage.HIDDEN
     }
 
-    // Courbe dynamique fluide de type Dynamic Island (ressort réactif avec amortissement doux)
+    // Ressort haute performance (amortissement 0.88f et raideur 500f) sans oscillations parasites
     val pillSpringSpec = spring<Dp>(
-        dampingRatio = Spring.DampingRatioLowBouncy,
-        stiffness = Spring.StiffnessMediumLow
+        dampingRatio = 0.88f,
+        stiffness = 500f
     )
 
     val animatedTop by animateDpAsState(
@@ -122,24 +122,23 @@ fun DynamicPillView(
 
     val currentHeight = (animatedBottom - animatedTop).coerceAtLeast(0.dp)
 
-    // Rayon de courbure adapté : pilule parfaite en compact, carré aux bords arrondis type iPhone pour Face ID
+    // Rayon de courbure adapté : pilule parfaite en compact, carré arrondi pour Face ID et carte
     val cornerRadius by animateDpAsState(
         targetValue = when {
-            state.isExpanded -> 36.dp
-            state.isFaceUnlockActive -> 24.dp // Carré aux bords arrondis type iPhone (squircle 24dp)
+            state.isExpanded -> 38.dp
+            state.isFaceUnlockActive -> 24.dp
             else -> 9999.dp
         },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
+            stiffness = 500f
         ),
         label = "PillCornerAnimation"
     )
 
-    // Fondu d'opacité global pour une fermeture et ouverture sans scintillement
     val contentAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = if (isVisible) 220 else 120),
+        animationSpec = tween(durationMillis = if (isVisible) 180 else 100),
         label = "ContentAlphaAnimation"
     )
 
@@ -168,23 +167,23 @@ fun DynamicPillView(
                         transitionSpec = {
                             when {
                                 initialState == IslandStage.COMPACT_MUSIC && targetState == IslandStage.EXPANDED_CARD -> {
-                                    (fadeIn(animationSpec = tween(220, delayMillis = 80, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 80, easing = FastOutSlowInEasing))) togetherWith
+                                    (fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.94f, animationSpec = tween(180, easing = FastOutSlowInEasing))) togetherWith
                                             fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
                                 }
                                 initialState == IslandStage.EXPANDED_CARD && targetState == IslandStage.COMPACT_MUSIC -> {
-                                    (fadeIn(animationSpec = tween(180, delayMillis = 110, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.88f, animationSpec = tween(180, delayMillis = 110, easing = FastOutSlowInEasing))) togetherWith
+                                    (fadeIn(animationSpec = tween(160, delayMillis = 60, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.90f, animationSpec = tween(160, delayMillis = 60, easing = FastOutSlowInEasing))) togetherWith
                                             fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
                                 }
                                 initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.COMPACT_MUSIC -> {
-                                    (fadeIn(animationSpec = tween(220, delayMillis = 80, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.90f, animationSpec = tween(220, delayMillis = 80, easing = FastOutSlowInEasing))) togetherWith
-                                            fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing))
+                                    (fadeIn(animationSpec = tween(180, delayMillis = 60, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.92f, animationSpec = tween(180, delayMillis = 60, easing = FastOutSlowInEasing))) togetherWith
+                                            fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
                                 }
                                 else -> {
-                                    fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing)) togetherWith
-                                            fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing))
+                                    fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) togetherWith
+                                            fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
                                 }
                             }
                         },
@@ -206,31 +205,33 @@ fun DynamicPillView(
                                 }
                             }
 
-                            // Vue Musique Détaillée (Carte Agrandie au clic comme sur iPhone)
+                            // Vue Musique Détaillée (Carte abaissée sous le poinçon avec textes et icônes agrandis)
                             IslandStage.EXPANDED_CARD -> {
                                 val track = state.mediaTrack
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(180.dp)
-                                        .padding(top = 22.dp, bottom = 14.dp, start = 16.dp, end = 16.dp),
+                                        .height(204.dp)
+                                        .padding(top = 44.dp, bottom = 18.dp, start = 18.dp, end = 18.dp),
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    // En-tête : Pochette, Titre, Artiste et Visualiseur sonore
+                                    // En-tête : Pochette agrandie (54dp), Titre en gras (16sp), Artiste (13sp) et Visualiseur sonore
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Row(
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(14.dp),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                viewModel.onOpenMusicAppClicked()
-                                            }
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    viewModel.onOpenMusicAppClicked()
+                                                }
                                         ) {
                                             val albumArt = track?.albumArt
                                             if (albumArt != null) {
@@ -238,14 +239,14 @@ fun DynamicPillView(
                                                     bitmap = albumArt.asImageBitmap(),
                                                     contentDescription = "Pochette d'album",
                                                     modifier = Modifier
-                                                        .size(46.dp)
-                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .size(54.dp)
+                                                        .clip(RoundedCornerShape(14.dp))
                                                 )
                                             } else {
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(46.dp)
-                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .size(54.dp)
+                                                        .clip(RoundedCornerShape(14.dp))
                                                         .background(
                                                             Brush.linearGradient(
                                                                 listOf(Color(0xFF6366F1), Color(0xFFEC4899))
@@ -253,28 +254,31 @@ fun DynamicPillView(
                                                         ),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Text("♪", color = Color.White, fontSize = 22.sp)
+                                                    Text("♪", color = Color.White, fontSize = 26.sp)
                                                 }
                                             }
 
                                             Column(
-                                                modifier = Modifier.width(150.dp)
+                                                modifier = Modifier.weight(1f),
+                                                verticalArrangement = Arrangement.spacedBy(2.dp)
                                             ) {
                                                 Text(
                                                     text = track?.title ?: "Média en cours",
                                                     color = Color.White,
-                                                    fontSize = 14.sp,
-                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Bold,
                                                     maxLines = 1
                                                 )
                                                 Text(
                                                     text = if (!track?.artist.isNullOrBlank()) track?.artist ?: "" else track?.appName ?: "",
-                                                    color = Color.LightGray,
-                                                    fontSize = 12.sp,
+                                                    color = Color(0xFFD1D5DB),
+                                                    fontSize = 13.sp,
                                                     maxLines = 1
                                                 )
                                             }
                                         }
+
+                                        Spacer(modifier = Modifier.width(10.dp))
 
                                         Box(
                                             modifier = Modifier.clickable(
@@ -288,7 +292,7 @@ fun DynamicPillView(
                                         }
                                     }
 
-                                    // Barre de progression musicale
+                                    // Barre de progression musicale agrandie (5dp) avec libellés temporels clairs (11sp)
                                     val durationMs = track?.durationMs ?: 0L
                                     val positionMs = track?.positionMs ?: 0L
                                     val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0.01f, 1f) else 0.35f
@@ -301,15 +305,15 @@ fun DynamicPillView(
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(4.dp)
-                                                .clip(RoundedCornerShape(2.dp))
+                                                .height(5.dp)
+                                                .clip(RoundedCornerShape(2.5.dp))
                                                 .background(Color.White.copy(alpha = 0.2f))
                                         ) {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth(progress)
-                                                    .height(4.dp)
-                                                    .clip(RoundedCornerShape(2.dp))
+                                                    .height(5.dp)
+                                                    .clip(RoundedCornerShape(2.5.dp))
                                                     .background(Color.White)
                                             )
                                         }
@@ -320,12 +324,12 @@ fun DynamicPillView(
                                                 .padding(top = 4.dp),
                                             horizontalArrangement = Arrangement.SpaceBetween
                                         ) {
-                                            Text(positionStr, color = Color.Gray, fontSize = 10.sp)
-                                            Text(durationStr, color = Color.Gray, fontSize = 10.sp)
+                                            Text(positionStr, color = Color(0xFF9CA3AF), fontSize = 11.sp)
+                                            Text(durationStr, color = Color(0xFF9CA3AF), fontSize = 11.sp)
                                         }
                                     }
 
-                                    // Commandes multimédias : Précédent, Lecture / Pause, Suivant
+                                    // Commandes multimédias agrandies : Précédent (46dp), Lecture / Pause (54dp), Suivant (46dp)
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -336,7 +340,7 @@ fun DynamicPillView(
                                         // Piste précédente
                                         Box(
                                             modifier = Modifier
-                                                .size(38.dp)
+                                                .size(46.dp)
                                                 .clip(CircleShape)
                                                 .clickable(
                                                     interactionSource = remember { MutableInteractionSource() },
@@ -346,15 +350,15 @@ fun DynamicPillView(
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("⏮", color = Color.White, fontSize = 18.sp)
+                                            Text("⏮", color = Color.White, fontSize = 22.sp)
                                         }
 
-                                        Spacer(modifier = Modifier.width(28.dp))
+                                        Spacer(modifier = Modifier.width(32.dp))
 
-                                        // Lecture / Pause principal
+                                        // Lecture / Pause principal agrandi
                                         Box(
                                             modifier = Modifier
-                                                .size(46.dp)
+                                                .size(54.dp)
                                                 .clip(CircleShape)
                                                 .background(Color.White)
                                                 .clickable(
@@ -368,17 +372,17 @@ fun DynamicPillView(
                                             Text(
                                                 text = if (track?.isPlaying == true) "❚❚" else "▶",
                                                 color = Color.Black,
-                                                fontSize = 18.sp,
+                                                fontSize = 24.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
 
-                                        Spacer(modifier = Modifier.width(28.dp))
+                                        Spacer(modifier = Modifier.width(32.dp))
 
                                         // Piste suivante
                                         Box(
                                             modifier = Modifier
-                                                .size(38.dp)
+                                                .size(46.dp)
                                                 .clip(CircleShape)
                                                 .clickable(
                                                     interactionSource = remember { MutableInteractionSource() },
@@ -388,7 +392,7 @@ fun DynamicPillView(
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("⏭", color = Color.White, fontSize = 18.sp)
+                                            Text("⏭", color = Color.White, fontSize = 22.sp)
                                         }
                                     }
                                 }
@@ -424,13 +428,13 @@ fun DynamicPillView(
                                                 bitmap = miniature.asImageBitmap(),
                                                 contentDescription = "Pochette miniature",
                                                 modifier = Modifier
-                                                    .size(24.dp)
+                                                    .size(26.dp)
                                                     .clip(CircleShape)
                                             )
                                         } else {
                                             Box(
                                                 modifier = Modifier
-                                                    .size(24.dp)
+                                                    .size(26.dp)
                                                     .clip(CircleShape)
                                                     .background(
                                                         Brush.linearGradient(

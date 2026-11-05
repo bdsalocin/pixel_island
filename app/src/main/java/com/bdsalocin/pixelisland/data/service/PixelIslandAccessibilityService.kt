@@ -261,8 +261,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
             shouldBeExpanded -> {
-                targetWindowWidth = (320 * density).toInt()
-                targetWindowHeight = (184 * density).toInt()
+                targetWindowWidth = (328 * density).toInt()
+                targetWindowHeight = (208 * density).toInt()
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
             }
             state.isMusicActive -> {
@@ -308,7 +308,7 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
                 }
                 resizeJob?.cancel()
                 resizeJob = serviceScope.launch {
-                    kotlinx.coroutines.delay(380)
+                    kotlinx.coroutines.delay(280)
                     overlayLayoutParams.width = targetWindowWidth
                     overlayLayoutParams.height = targetWindowHeight
                     overlayLayoutParams.flags = targetFlags
