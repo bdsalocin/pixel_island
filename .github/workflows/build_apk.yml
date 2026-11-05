@@ -42,9 +42,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.0
-          name: Pixel Island v1.3.0 APK
-          body: Fermeture fluide sur soi-meme, maintien musique sur ecran verrouille, hauteur audio 40dp et carte musicale complete au clic
+          tag_name: v1.3.1
+          name: Pixel Island v1.3.1 APK
+          body: Signature cryptographique stable et permanente pour mise a jour sans conflit sur Obtainium
           files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
