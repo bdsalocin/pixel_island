@@ -2,6 +2,7 @@ package com.bdsalocin.pixelisland.data.repository
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -151,5 +152,23 @@ class MediaRepositoryImpl(
 
     override suspend fun skipToPrevious() {
         activeController?.transportControls?.skipToPrevious()
+    }
+
+    override suspend fun openMusicApp() {
+        try {
+            val sessionIntent = activeController?.sessionActivity
+            if (sessionIntent != null) {
+                sessionIntent.send()
+            } else {
+                val packageName = activeController?.packageName
+                if (packageName != null) {
+                    val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+                    launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    if (launchIntent != null) {
+                        context.startActivity(launchIntent)
+                    }
+                }
+            }
+        } catch (_: Exception) {}
     }
 }

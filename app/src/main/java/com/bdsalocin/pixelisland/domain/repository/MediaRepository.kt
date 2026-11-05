@@ -8,4 +8,5 @@ interface MediaRepository {
     suspend fun playPause()
     suspend fun skipToNext()
     suspend fun skipToPrevious()
+    suspend fun openMusicApp()
 }

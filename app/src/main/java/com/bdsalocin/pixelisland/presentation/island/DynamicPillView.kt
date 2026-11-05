@@ -80,17 +80,27 @@ fun DynamicPillView(
         else -> 0.dp // Se rétracte à 0 en largeur au centre
     }
 
-    // Animation plus douce et plus lente lors du déverrouillage (650ms) pour apprécier le déploiement
-    val animDuration = when {
-        state.isFaceUnlockActive && isVisible -> 650
-        isVisible -> 450
-        else -> 380
+    // Animation d'absorption dynamique élastique pour la musique (effet de capture type iPhone)
+    // et déploiement ralenti gracieux pour le déverrouillage
+    val isOpeningMusic = state.isMusicActive && isVisible && !state.isExpanded
+    val animSpec = when {
+        state.isFaceUnlockActive && isVisible -> tween<Dp>(
+            durationMillis = 650,
+            easing = FastOutSlowInEasing
+        )
+        isOpeningMusic -> spring<Dp>(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        )
+        isVisible -> tween<Dp>(
+            durationMillis = 420,
+            easing = FastOutSlowInEasing
+        )
+        else -> tween<Dp>(
+            durationMillis = 380,
+            easing = FastOutSlowInEasing
+        )
     }
-
-    val animSpec = tween<Dp>(
-        durationMillis = animDuration,
-        easing = FastOutSlowInEasing
-    )
 
     val animatedTop by animateDpAsState(
         targetValue = targetTop,
@@ -193,7 +203,8 @@ fun DynamicPillView(
                             ) {
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable { viewModel.onOpenMusicAppClicked() }
                                 ) {
                                     val albumArt = state.mediaTrack?.albumArt
                                     if (albumArt != null) {
@@ -357,6 +368,7 @@ fun DynamicPillView(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
+                                        .clickable { viewModel.onOpenMusicAppClicked() }
                                 )
                             } else {
                                 Box(
@@ -367,7 +379,8 @@ fun DynamicPillView(
                                             Brush.linearGradient(
                                                 listOf(Color(0xFF6366F1), Color(0xFFEC4899))
                                             )
-                                        ),
+                                        )
+                                        .clickable { viewModel.onOpenMusicAppClicked() },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text("♪", color = Color.White, fontSize = 12.sp)

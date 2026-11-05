@@ -53,6 +53,10 @@ class AppContainer(private val context: Context) {
         com.bdsalocin.pixelisland.domain.usecase.SkipPreviousUseCase(mediaRepository)
     }
 
+    val openMusicAppUseCase by lazy {
+        com.bdsalocin.pixelisland.domain.usecase.OpenMusicAppUseCase(mediaRepository)
+    }
+
     // ViewModel partagé
     val islandViewModel by lazy {
         IslandViewModel(
@@ -61,7 +65,8 @@ class AppContainer(private val context: Context) {
             calculateCutoutAnchorUseCase = calculateCutoutAnchorUseCase,
             togglePlaybackUseCase = togglePlaybackUseCase,
             skipNextUseCase = skipNextUseCase,
-            skipPreviousUseCase = skipPreviousUseCase
+            skipPreviousUseCase = skipPreviousUseCase,
+            openMusicAppUseCase = openMusicAppUseCase
         )
     }
 }

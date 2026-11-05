@@ -42,9 +42,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.3.2
-          name: Pixel Island v1.3.2 APK
-          body: Centrage absolu sur le poincon lors du repli, ouverture ralentie et majestueuse au deverrouillage Face
+          tag_name: v1.4.0
+          name: Pixel Island v1.4.0 APK
+          body: Effet d absorption elastique type iPhone au retour accueil, ouverture directe de l application musique au clic
           files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -101,6 +101,15 @@
               <span id="musicBadge" class="text-xs px-2 py-0.5 rounded-full bg-white/20">Active</span>
             </button>
 
+            <!-- Bouton Minimiser l'app musique (Effet Absorption iPhone) -->
+            <button id="btnAbsorb" onclick="simulateAppMinimizingAbsorption()" class="w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700">
+              <span class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path></svg>
+                <span>Fermer Spotify (Absorption Élastique)</span>
+              </span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-pink-500/20 text-pink-300">Test</span>
+            </button>
+
             <!-- Bouton Déverrouillage Face ID -->
             <button id="btnFace" onclick="triggerFaceUnlock()" class="w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700">
               <span class="flex items-center gap-2">
@@ -372,6 +381,35 @@
       isHidden = false;
       triggerHaptic('medium');
       renderState();
+    }
+
+    function simulateAppMinimizingAbsorption() {
+      if (isFaceActive) return;
+      triggerHaptic('medium');
+      
+      // Simulation : l'application musicale se ferme vers le haut et l'îlot absorbe le son avec rebond
+      isMusicActive = true;
+      isExpanded = false;
+      isHidden = true;
+      renderState();
+
+      setTimeout(() => {
+        isHidden = false;
+        // Rebond d'absorption élastique type iPhone (dépassement et stabilisation)
+        island.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        island.style.width = '196px';
+        island.style.height = '46px';
+        island.style.borderRadius = '9999px';
+        leftContent.classList.remove('opacity-0');
+        rightContent.classList.remove('opacity-0');
+        triggerHaptic('success');
+
+        setTimeout(() => {
+          island.style.transition = 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
+          island.style.width = '180px';
+          island.style.height = '40px';
+        }, 260);
+      }, 120);
     }
 
     function toggleDualIsland() {
