@@ -148,11 +148,16 @@ class MediaRepositoryImpl(
             state == PlaybackState.STATE_FAST_FORWARDING ||
             state == PlaybackState.STATE_REWINDING
         } ?: controllers.firstOrNull { controller ->
-            audioManager?.isMusicActive == true && (controller.metadata != null || controller.playbackState != null)
+            val state = controller.playbackState?.state
+            audioManager?.isMusicActive == true &&
+                state != PlaybackState.STATE_STOPPED &&
+                state != PlaybackState.STATE_NONE &&
+                (controller.metadata != null || controller.playbackState != null)
         } ?: controllers.firstOrNull { controller ->
-            controller.playbackState?.state == PlaybackState.STATE_PAUSED && controller.metadata != null
-        } ?: controllers.firstOrNull { controller ->
-            controller.metadata != null
+            val state = controller.playbackState?.state
+            state == PlaybackState.STATE_PAUSED &&
+                controller.metadata != null &&
+                MusicNotificationListenerService.hasActiveMediaNotification(controller.packageName)
         }
 
         activeController = playingController
@@ -161,9 +166,15 @@ class MediaRepositoryImpl(
 
     private fun extractCurrentTrack(controller: MediaController?): MediaTrack? {
         if (controller == null) return null
+        val playbackState = controller.playbackState ?: return null
+        val stateVal = playbackState.state
+
+        // Exclure formellement les sessions arrêtées ou fermées
+        if (stateVal == PlaybackState.STATE_STOPPED || stateVal == PlaybackState.STATE_NONE) {
+            return null
+        }
+
         val metadata = controller.metadata
-        val playbackState = controller.playbackState
-        val stateVal = playbackState?.state
         val isHardwareAudioActive = audioManager?.isMusicActive == true
 
         val isPlaying = stateVal == PlaybackState.STATE_PLAYING ||
@@ -171,7 +182,22 @@ class MediaRepositoryImpl(
                 stateVal == PlaybackState.STATE_CONNECTING ||
                 stateVal == PlaybackState.STATE_FAST_FORWARDING ||
                 stateVal == PlaybackState.STATE_REWINDING ||
-                (isHardwareAudioActive && stateVal != PlaybackState.STATE_PAUSED && stateVal != PlaybackState.STATE_STOPPED)
+                (isHardwareAudioActive && stateVal != PlaybackState.STATE_PAUSED)
+
+        // Si l'application est en pause mais que sa notification a été fermée ou retirée, ne rien renvoyer
+        if (!isPlaying && !MusicNotificationListenerService.hasActiveMediaNotification(controller.packageName)) {
+            return null
+        }
+
+        // Si rien n'est en lecture et aucun état de pause valide, ne rien renvoyer
+        if (!isPlaying && stateVal != PlaybackState.STATE_PAUSED) {
+            return null
+        }
+
+        // Si aucun métadonnée et aucun son actif, ignorer
+        if (metadata == null && !isHardwareAudioActive) {
+            return null
+        }
 
         val appName = try {
             val pm = context.packageManager
@@ -179,11 +205,6 @@ class MediaRepositoryImpl(
             pm.getApplicationLabel(appInfo).toString()
         } catch (_: Exception) {
             "Lecture multimédia"
-        }
-
-        // Si rien n'est en lecture, pas de son matériel actif et aucun titre, ne rien renvoyer
-        if (!isPlaying && !isHardwareAudioActive && metadata == null && stateVal != PlaybackState.STATE_PAUSED) {
-            return null
         }
 
         val rawTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
@@ -203,7 +224,7 @@ class MediaRepositoryImpl(
             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
 
         val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
-        val position = playbackState?.position ?: 0L
+        val position = playbackState.position
 
         return MediaTrack(
             title = title,

@@ -29,6 +29,7 @@ class IslandViewModel(
     private val _uiState = MutableStateFlow(IslandUiState())
     val uiState = _uiState.asStateFlow()
 
+    private var lastWasPlaying = false
     private var pauseDismissJob: Job? = null
 
     init {
@@ -41,19 +42,39 @@ class IslandViewModel(
         viewModelScope.launch {
             observeActiveMediaUseCase().collect { track ->
                 if (track?.isPlaying == true) {
+                    lastWasPlaying = true
                     pauseDismissJob?.cancel()
-                    _uiState.update { it.copy(mediaTrack = track, isPausedGraceActive = false) }
+                    _uiState.update { 
+                        it.copy(mediaTrack = track, isPausedGraceActive = false) 
+                    }
                 } else if (track != null) {
-                    // Piste en pause : maintenir l'affichage pendant 6 secondes de grâce
-                    _uiState.update { it.copy(mediaTrack = track, isPausedGraceActive = true) }
-                    pauseDismissJob?.cancel()
-                    pauseDismissJob = viewModelScope.launch {
-                        delay(6000)
-                        _uiState.update { it.copy(isPausedGraceActive = false) }
+                    // Piste en pause
+                    if (lastWasPlaying) {
+                        // Vient tout juste de passer de Lecture à Pause : délai de grâce de 5 secondes
+                        lastWasPlaying = false
+                        _uiState.update { 
+                            it.copy(mediaTrack = track, isPausedGraceActive = true) 
+                        }
+                        pauseDismissJob?.cancel()
+                        pauseDismissJob = viewModelScope.launch {
+                            delay(5000)
+                            _uiState.update { 
+                                it.copy(isPausedGraceActive = false, isExpanded = false) 
+                            }
+                        }
+                    } else {
+                        // Déjà en pause : mettre à jour les métadonnées sans relancer le décompte
+                        _uiState.update { 
+                            it.copy(mediaTrack = track) 
+                        }
                     }
                 } else {
+                    // Aucune musique active (application fermée ou arrêtée) : disparition immédiate
+                    lastWasPlaying = false
                     pauseDismissJob?.cancel()
-                    _uiState.update { it.copy(mediaTrack = null, isPausedGraceActive = false) }
+                    _uiState.update { 
+                        it.copy(mediaTrack = null, isPausedGraceActive = false, isExpanded = false) 
+                    }
                 }
             }
         }
@@ -76,7 +97,9 @@ class IslandViewModel(
     }
 
     fun toggleExpand() {
-        _uiState.update { it.copy(isExpanded = !it.isExpanded) }
+        if (_uiState.value.mediaTrack != null) {
+            _uiState.update { it.copy(isExpanded = !it.isExpanded) }
+        }
     }
 
     fun onPlayPauseClicked() {

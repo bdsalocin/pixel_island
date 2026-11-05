@@ -98,7 +98,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         val windowFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
         layoutParams = WindowManager.LayoutParams(

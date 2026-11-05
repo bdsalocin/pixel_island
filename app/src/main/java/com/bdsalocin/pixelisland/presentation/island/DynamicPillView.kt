@@ -12,7 +12,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,7 +39,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -166,7 +167,18 @@ fun DynamicPillView(
     )
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (state.isExpanded) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        viewModel.toggleExpand()
+                    }
+                } else Modifier
+            ),
         contentAlignment = Alignment.TopCenter
     ) {
         // Affichage actif tant que l'îlot a une dimension physique visible
@@ -178,14 +190,11 @@ fun DynamicPillView(
                     .height(currentHeight)
                     .clip(RoundedCornerShape(cornerRadius))
                     .background(Color.Black)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = {
-                                if (state.isMusicActive || state.isExpanded) {
-                                    viewModel.toggleExpand()
-                                }
-                            }
-                        )
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        viewModel.toggleExpand()
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -239,8 +248,11 @@ fun DynamicPillView(
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.pointerInput(Unit) {
-                                                detectTapGestures { viewModel.onOpenMusicAppClicked() }
+                                            modifier = Modifier.clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                viewModel.onOpenMusicAppClicked()
                                             }
                                         ) {
                                             val albumArt = track?.albumArt
@@ -340,8 +352,11 @@ fun DynamicPillView(
                                             modifier = Modifier
                                                 .size(38.dp)
                                                 .clip(CircleShape)
-                                                .pointerInput(Unit) {
-                                                    detectTapGestures { viewModel.onSkipPreviousClicked() }
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    viewModel.onSkipPreviousClicked()
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -356,8 +371,11 @@ fun DynamicPillView(
                                                 .size(46.dp)
                                                 .clip(CircleShape)
                                                 .background(Color.White)
-                                                .pointerInput(Unit) {
-                                                    detectTapGestures { viewModel.onPlayPauseClicked() }
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    viewModel.onPlayPauseClicked()
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
@@ -376,8 +394,11 @@ fun DynamicPillView(
                                             modifier = Modifier
                                                 .size(38.dp)
                                                 .clip(CircleShape)
-                                                .pointerInput(Unit) {
-                                                    detectTapGestures { viewModel.onSkipNextClicked() }
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    viewModel.onSkipNextClicked()
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
