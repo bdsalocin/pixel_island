@@ -71,21 +71,21 @@ fun DynamicPillView(
     // Calcul dynamique des bornes haut et bas pour garantir un centrage absolu sur le poinçon
     val targetTop = when {
         state.isFaceUnlockActive -> 0.dp
-        state.isExpanded -> 20.dp
+        state.isExpanded -> 46.dp // Descend sous la barre d'état (44dp) pour dégager l'heure, la date et le réseau
         state.isMusicActive -> 0.dp
         else -> 12.dp // S'arrête exactement au bord supérieur du poinçon lors du repli
     }
 
     val targetBottom = when {
-        state.isFaceUnlockActive -> 74.dp
-        state.isExpanded -> 180.dp
+        state.isFaceUnlockActive -> 54.dp // Compact 54dp : même largeur 180dp que la musique pour zéro saut horizontal
+        state.isExpanded -> 206.dp // 46dp + 160dp
         state.isMusicActive -> 40.dp
         else -> 28.dp // Se rétracte directement vers le poinçon
     }
 
     val targetWidth = when {
-        state.isFaceUnlockActive -> 190.dp
-        state.isExpanded -> 310.dp
+        state.isFaceUnlockActive -> 180.dp // Exactement la même largeur que la musique pour transition fluide
+        state.isExpanded -> 320.dp
         state.isMusicActive -> 180.dp
         else -> 0.dp // Se rétracte à 0 en largeur au centre
     }
@@ -150,7 +150,7 @@ fun DynamicPillView(
     val cornerRadius by animateDpAsState(
         targetValue = when {
             state.isExpanded -> 38.dp
-            state.isFaceUnlockActive -> 37.dp
+            state.isFaceUnlockActive -> 27.dp
             else -> 9999.dp
         },
         animationSpec = spring(
@@ -198,21 +198,19 @@ fun DynamicPillView(
                         label = "IslandContentTransition"
                     ) { stage ->
                         when (stage) {
-                            // Vue Déverrouillage Visage (Face Unlock affiché vers le bas sous le poinçon)
+                            // Vue Déverrouillage Visage (Face Unlock compact et centré 54dp)
                             IslandStage.FACE_UNLOCK -> {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(74.dp)
+                                        .height(54.dp)
                                         .padding(horizontal = 14.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Bottom
+                                    verticalArrangement = Arrangement.Center
                                 ) {
                                     FaceUnlockScanner(
                                         status = state.biometricStatus,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(bottom = 10.dp)
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }
