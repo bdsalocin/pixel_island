@@ -63,9 +63,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-            tag_name: v1.4.6
-            name: Pixel Island v1.4.6 APK
-            body: Dynamic Island zones tactiles gauche droite, transition fluide Face ID vers musique et carte abaissee
-            files: app/build/outputs/apk/debug/pixel_island.apk
+          tag_name: v1.4.6
+          name: Pixel Island v1.4.6 APK
+          body: Dynamic Island zones tactiles gauche droite, transition fluide Face ID vers musique et carte abaissee
+          files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
