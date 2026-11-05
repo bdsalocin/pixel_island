@@ -277,6 +277,12 @@ class MediaRepositoryImpl(
 
     override suspend fun openMusicApp() {
         activeController?.let { controller ->
+            controller.sessionActivity?.let { pendingIntent ->
+                try {
+                    pendingIntent.send()
+                    return
+                } catch (_: Exception) {}
+            }
             val launchIntent = context.packageManager.getLaunchIntentForPackage(controller.packageName)
             launchIntent?.let {
                 it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

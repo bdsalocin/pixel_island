@@ -123,84 +123,53 @@ fun DynamicPillView(
         else -> IslandStage.HIDDEN
     }
 
+    val targetCornerRadius = when {
+        state.isExpanded -> 40.dp
+        state.isFaceUnlockActive -> 24.dp
+        else -> 9999.dp
+    }
+
     // Amortissement critique sans rebond (DampingRatioNoBouncy) pour une fluidité absolue à 120 FPS
-    val pillSpringSpec = spring<Dp>(
+    val pillSpringSpec = spring<Float>(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = 450f
     )
 
-    val animatedTop by animateDpAsState(
-        targetValue = targetTop,
-        animationSpec = pillSpringSpec,
-        label = "PillTopAnimation"
-    )
-
-    val animatedBottom by animateDpAsState(
-        targetValue = targetBottom,
-        animationSpec = pillSpringSpec,
-        label = "PillBottomAnimation"
-    )
-
-    val animatedWidth by animateDpAsState(
-        targetValue = targetWidth,
-        animationSpec = pillSpringSpec,
-        label = "PillWidthAnimation"
-    )
+    val pillTopAnim = remember { Animatable(targetTop.value) }
+    val pillBottomAnim = remember { Animatable(targetBottom.value) }
+    val pillWidthAnim = remember { Animatable(targetWidth.value) }
+    val pillCornerAnim = remember { Animatable(targetCornerRadius.value) }
 
     val density = LocalDensity.current
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     var isDraggingCard by remember { mutableStateOf(false) }
-    val dragOffsetY = remember { Animatable(0f) }
     val velocityTracker = remember { VelocityTracker() }
 
-    LaunchedEffect(state.isExpanded) {
-        if (!state.isExpanded) {
-            isDraggingCard = false
-            dragOffsetY.snapTo(0f)
+    LaunchedEffect(targetTop.value, targetBottom.value, targetWidth.value, targetCornerRadius.value) {
+        if (!isDraggingCard) {
+            launch { pillTopAnim.animateTo(targetTop.value, pillSpringSpec) }
+            launch { pillBottomAnim.animateTo(targetBottom.value, pillSpringSpec) }
+            launch { pillWidthAnim.animateTo(targetWidth.value, pillSpringSpec) }
+            launch { pillCornerAnim.animateTo(targetCornerRadius.value, pillSpringSpec) }
         }
     }
 
-    val maxDragDp = 198.dp
-    val maxDragPx = with(density) { maxDragDp.toPx() }
-    val upwardPx = (-dragOffsetY.value).coerceAtLeast(0f)
-    val upwardDp = with(density) { upwardPx.toDp() }
-    val dragFraction = if (maxDragPx > 0f) (upwardPx / maxDragPx).coerceIn(0f, 1f) else 0f
-
-    val currentPillBottom = if (isDraggingCard && state.isExpanded) {
-        (targetBottom - upwardDp).coerceIn(40.dp, 238.dp)
-    } else {
-        animatedBottom
+    LaunchedEffect(state.isExpanded) {
+        if (!state.isExpanded && isDraggingCard) {
+            isDraggingCard = false
+            launch { pillBottomAnim.animateTo(targetBottom.value, pillSpringSpec) }
+            launch { pillWidthAnim.animateTo(targetWidth.value, pillSpringSpec) }
+            launch { pillCornerAnim.animateTo(targetCornerRadius.value, pillSpringSpec) }
+        }
     }
 
-    val currentPillWidth = if (isDraggingCard && state.isExpanded) {
-        (384.dp - ((384.dp - 180.dp) * dragFraction)).coerceIn(180.dp, 384.dp)
-    } else {
-        animatedWidth
-    }
-
-    // Rayon de courbure adapté : pilule parfaite en compact, squircle élégant pour Face ID et grande carte
-    val cornerRadius by animateDpAsState(
-        targetValue = when {
-            state.isExpanded -> 40.dp
-            state.isFaceUnlockActive -> 24.dp
-            else -> 9999.dp
-        },
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = 450f
-        ),
-        label = "PillCornerAnimation"
-    )
-
-    val currentPillCornerRadius = if (isDraggingCard && state.isExpanded) {
-        (40.dp + (50.dp * dragFraction)).coerceAtMost(9999.dp)
-    } else {
-        cornerRadius
-    }
-
-    val currentHeight = (currentPillBottom - animatedTop).coerceAtLeast(0.dp)
+    val currentTop = pillTopAnim.value.dp
+    val currentPillBottom = pillBottomAnim.value.dp
+    val currentPillWidth = pillWidthAnim.value.dp
+    val currentPillCornerRadius = pillCornerAnim.value.dp
+    val currentHeight = (currentPillBottom - currentTop).coerceAtLeast(0.dp)
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
@@ -215,7 +184,7 @@ fun DynamicPillView(
         if (currentPillWidth > 0.5.dp && currentHeight > 0.5.dp) {
             Box(
                 modifier = modifier
-                    .padding(top = animatedTop)
+                    .padding(top = currentTop)
                     .width(currentPillWidth)
                     .height(currentHeight)
                     .clip(RoundedCornerShape(currentPillCornerRadius))
@@ -278,8 +247,9 @@ fun DynamicPillView(
                             // Vue Musique Détaillée (Grande carte étirée sur les côtés, pochette 64dp, titre 18sp, scrubbing et icônes Apple)
                             IslandStage.EXPANDED_CARD -> {
                                 val track = state.mediaTrack
-                                val dragContentScale = if (isDraggingCard) (1f - dragFraction * 0.12f).coerceIn(0.88f, 1f) else 1f
-                                val dragContentAlpha = if (isDraggingCard) (1f - dragFraction * 0.45f).coerceIn(0f, 1f) else 1f
+                                val dragFraction = ((238f - pillBottomAnim.value) / 198f).coerceIn(0f, 1f)
+                                val dragContentScale = (1f - dragFraction * 0.12f).coerceIn(0.88f, 1f)
+                                val dragContentAlpha = (1f - dragFraction * 0.45f).coerceIn(0f, 1f)
 
                                 Column(
                                     modifier = Modifier
@@ -300,53 +270,116 @@ fun DynamicPillView(
                                                 },
                                                 onDragEnd = {
                                                     val velocityY = velocityTracker.calculateVelocity().y
-                                                    val displacementDp = with(density) { (-dragOffsetY.value).toDp() }
-                                                    val shouldDismiss = displacementDp >= 50.dp || velocityY <= -800f
+                                                    val displacementDp = 238f - pillBottomAnim.value
+                                                    val shouldDismiss = (displacementDp >= 50f && velocityY < 800f) || velocityY <= -800f
 
                                                     coroutineScope.launch {
+                                                        isDraggingCard = false
                                                         if (shouldDismiss) {
                                                             HapticFeedbackHelper.performConfirmationFeedback(context)
-                                                            dragOffsetY.animateTo(
-                                                                targetValue = -with(density) { maxDragDp.toPx() },
-                                                                animationSpec = spring(
-                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                                    stiffness = 500f
-                                                                )
-                                                            )
                                                             viewModel.collapseIsland()
-                                                            dragOffsetY.snapTo(0f)
-                                                            isDraggingCard = false
-                                                        } else {
-                                                            dragOffsetY.animateTo(
-                                                                targetValue = 0f,
-                                                                animationSpec = spring(
-                                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                                    stiffness = 450f
+                                                            launch {
+                                                                pillBottomAnim.animateTo(
+                                                                    targetValue = 40f,
+                                                                    animationSpec = spring(
+                                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                        stiffness = 500f
+                                                                    )
                                                                 )
-                                                            )
-                                                            isDraggingCard = false
+                                                            }
+                                                            launch {
+                                                                pillWidthAnim.animateTo(
+                                                                    targetValue = 180f,
+                                                                    animationSpec = spring(
+                                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                        stiffness = 500f
+                                                                    )
+                                                                )
+                                                            }
+                                                            launch {
+                                                                pillCornerAnim.animateTo(
+                                                                    targetValue = 9999f,
+                                                                    animationSpec = spring(
+                                                                        dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                        stiffness = 500f
+                                                                    )
+                                                                )
+                                                            }
+                                                        } else {
+                                                            launch {
+                                                                pillBottomAnim.animateTo(
+                                                                    targetValue = 238f,
+                                                                    animationSpec = spring(
+                                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                                        stiffness = 450f
+                                                                    )
+                                                                )
+                                                            }
+                                                            launch {
+                                                                pillWidthAnim.animateTo(
+                                                                    targetValue = 384f,
+                                                                    animationSpec = spring(
+                                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                                        stiffness = 450f
+                                                                    )
+                                                                )
+                                                            }
+                                                            launch {
+                                                                pillCornerAnim.animateTo(
+                                                                    targetValue = 40f,
+                                                                    animationSpec = spring(
+                                                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                                        stiffness = 450f
+                                                                    )
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 },
                                                 onDragCancel = {
                                                     coroutineScope.launch {
-                                                        dragOffsetY.animateTo(
-                                                            targetValue = 0f,
-                                                            animationSpec = spring(
-                                                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                                                stiffness = 450f
-                                                            )
-                                                        )
                                                         isDraggingCard = false
+                                                        launch {
+                                                            pillBottomAnim.animateTo(
+                                                                targetValue = 238f,
+                                                                animationSpec = spring(
+                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                    stiffness = 450f
+                                                                )
+                                                            )
+                                                        }
+                                                        launch {
+                                                            pillWidthAnim.animateTo(
+                                                                targetValue = 384f,
+                                                                animationSpec = spring(
+                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                    stiffness = 450f
+                                                                )
+                                                            )
+                                                        }
+                                                        launch {
+                                                            pillCornerAnim.animateTo(
+                                                                targetValue = 40f,
+                                                                animationSpec = spring(
+                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                    stiffness = 450f
+                                                                )
+                                                            )
+                                                        }
                                                     }
                                                 },
                                                 onVerticalDrag = { change, dragAmount ->
                                                     velocityTracker.addPosition(change.uptimeMillis, change.position)
                                                     change.consume()
-                                                    val maxPx = with(density) { maxDragDp.toPx() }
-                                                    val newOffset = (dragOffsetY.value + dragAmount).coerceIn(-maxPx, 0f)
+                                                    val dragDp = with(density) { dragAmount.toDp().value }
+                                                    val newBottom = (pillBottomAnim.value + dragDp).coerceIn(40f, 238f)
+                                                    val progress = ((238f - newBottom) / 198f).coerceIn(0f, 1f)
+                                                    val newWidth = 384f - (204f * progress)
+                                                    val newCorner = 40f + (50f * progress)
                                                     coroutineScope.launch {
-                                                        dragOffsetY.snapTo(newOffset)
+                                                        pillBottomAnim.snapTo(newBottom)
+                                                        pillWidthAnim.snapTo(newWidth)
+                                                        pillCornerAnim.snapTo(newCorner)
                                                     }
                                                 }
                                             )

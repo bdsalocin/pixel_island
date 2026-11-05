@@ -18,57 +18,65 @@ object HapticFeedbackHelper {
      * Vibration tactile subtile (style Taptic Engine) pour l'appui long sur la pilule compacte.
      */
     fun performTapticFeedback(context: Context, view: View? = null) {
-        try {
+        val viewFeedbackHandled = try {
             view?.performHapticFeedback(
                 HapticFeedbackConstants.LONG_PRESS,
                 HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
-            )
-        } catch (_: Exception) {}
+            ) ?: false
+        } catch (_: Exception) {
+            false
+        }
 
-        try {
-            val vibrator = getVibrator(context)
-            if (vibrator != null && vibrator.hasVibrator()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val effect = VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
-                    vibrator.vibrate(effect)
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(20L)
+        if (!viewFeedbackHandled) {
+            try {
+                val vibrator = getVibrator(context)
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val effect = VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+                        vibrator.vibrate(effect)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(20L)
+                    }
                 }
-            }
-        } catch (_: Exception) {}
+            } catch (_: Exception) {}
+        }
     }
 
     /**
      * Vibration tactile de confirmation pour la fermeture de la carte vers l'ilot compact.
      */
     fun performConfirmationFeedback(context: Context, view: View? = null) {
-        try {
+        val viewFeedbackHandled = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 view?.performHapticFeedback(
                     HapticFeedbackConstants.CONFIRM,
                     HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
-                )
+                ) ?: false
             } else {
                 view?.performHapticFeedback(
                     HapticFeedbackConstants.LONG_PRESS,
                     HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING
-                )
+                ) ?: false
             }
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+            false
+        }
 
-        try {
-            val vibrator = getVibrator(context)
-            if (vibrator != null && vibrator.hasVibrator()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val effect = VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
-                    vibrator.vibrate(effect)
-                } else {
-                    @Suppress("DEPRECATION")
-                    vibrator.vibrate(30L)
+        if (!viewFeedbackHandled) {
+            try {
+                val vibrator = getVibrator(context)
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val effect = VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
+                        vibrator.vibrate(effect)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        vibrator.vibrate(30L)
+                    }
                 }
-            }
-        } catch (_: Exception) {}
+            } catch (_: Exception) {}
+        }
     }
 
     private fun getVibrator(context: Context): Vibrator? {

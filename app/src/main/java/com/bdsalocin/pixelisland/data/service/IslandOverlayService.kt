@@ -150,6 +150,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
             private var startRawY = 0f
             private var startTime = 0L
             private var isLongPressTriggered = false
+            private var isExpandedTouchDown = false
             private val longPressHandler = Handler(Looper.getMainLooper())
             private val longPressTimeout = 380L
             private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
@@ -180,13 +181,26 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                         startRawX = event.rawX
                         startRawY = event.rawY
                         startTime = System.currentTimeMillis()
-                    } else if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 40 * d) {
-                        val duration = System.currentTimeMillis() - startTime
-                        val dy = kotlin.math.abs(event.rawY - startRawY)
-                        if (duration < 600 && dy < 30 * d) {
-                            container.islandViewModel.collapseIsland()
+                        isExpandedTouchDown = true
+                    } else if (event.actionMasked == MotionEvent.ACTION_UP) {
+                        if (isLongPressTriggered) {
+                            isLongPressTriggered = false
+                            isExpandedTouchDown = false
                             return true
                         }
+                        if (isExpandedTouchDown && event.y < 40 * d) {
+                            val duration = System.currentTimeMillis() - startTime
+                            val dy = kotlin.math.abs(event.rawY - startRawY)
+                            if (duration < 600 && dy < 30 * d) {
+                                isExpandedTouchDown = false
+                                container.islandViewModel.collapseIsland()
+                                return true
+                            }
+                        }
+                        isExpandedTouchDown = false
+                    } else if (event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                        isLongPressTriggered = false
+                        isExpandedTouchDown = false
                     }
                     return super.dispatchTouchEvent(event)
                 }
@@ -198,6 +212,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                             startRawY = event.rawY
                             startTime = System.currentTimeMillis()
                             isLongPressTriggered = false
+                            isExpandedTouchDown = false
                             longPressHandler.removeCallbacks(longPressRunnable)
                             longPressHandler.postDelayed(longPressRunnable, longPressTimeout)
                             return true
@@ -221,6 +236,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                                     container.islandViewModel.onOpenMusicAppClicked()
                                 }
                             }
+                            isLongPressTriggered = false
                             return true
                         }
                         MotionEvent.ACTION_CANCEL -> {
