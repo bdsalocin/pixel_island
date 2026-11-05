@@ -69,22 +69,22 @@ fun DynamicPillView(
 
     // Calcul dynamique des bornes haut et bas pour garantir un centrage absolu sur le poinçon
     val targetTop = when {
-        state.isExpanded -> 0.dp
         state.isFaceUnlockActive -> 0.dp
+        state.isExpanded -> 0.dp
         state.isMusicActive -> 0.dp
-        else -> punchHoleCenterY // Se rétracte exactement au centre du poinçon
+        else -> 12.dp // S'arrête exactement au bord supérieur du poinçon lors du repli
     }
 
     val targetBottom = when {
-        state.isExpanded -> 156.dp
         state.isFaceUnlockActive -> 74.dp
+        state.isExpanded -> 156.dp
         state.isMusicActive -> 40.dp
-        else -> punchHoleCenterY // Se rétracte exactement au centre du poinçon
+        else -> 28.dp // Se rétracte directement vers le poinçon
     }
 
     val targetWidth = when {
-        state.isExpanded -> 310.dp
         state.isFaceUnlockActive -> 190.dp
+        state.isExpanded -> 310.dp
         state.isMusicActive -> 180.dp
         else -> 0.dp // Se rétracte à 0 en largeur au centre
     }
@@ -99,7 +99,7 @@ fun DynamicPillView(
 
     // Animation d'absorption dynamique élastique pour la musique (effet de capture type iPhone)
     // et déploiement ralenti gracieux pour le déverrouillage et la transition post-déverrouillage
-    val isOpeningMusic = state.isMusicActive && isVisible && !state.isExpanded
+    val isOpeningMusic = state.isMusicActive && isVisible && !state.isExpanded && !state.isFaceUnlockActive
     val isPostFaceTransition = !state.isFaceUnlockActive && state.isMusicActive && isVisible
 
     val animSpec = when {
@@ -108,7 +108,7 @@ fun DynamicPillView(
             easing = FastOutSlowInEasing
         )
         isPostFaceTransition -> tween<Dp>(
-            durationMillis = 480,
+            durationMillis = 520,
             easing = FastOutSlowInEasing
         )
         isOpeningMusic -> spring<Dp>(
@@ -120,7 +120,7 @@ fun DynamicPillView(
             easing = FastOutSlowInEasing
         )
         else -> tween<Dp>(
-            durationMillis = 380,
+            durationMillis = 420,
             easing = FastOutSlowInEasing
         )
     }
@@ -403,39 +403,63 @@ fun DynamicPillView(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {
+                                            viewModel.toggleExpand()
+                                        }
                                         .padding(horizontal = 12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Côté gauche : Onde sonore vibrante (s'arrête au repos si en pause)
-                                    EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
+                                    // Côté gauche : Onde sonore vibrante (clic direct pour afficher la carte)
+                                    Box(
+                                        modifier = Modifier.clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {
+                                            viewModel.toggleExpand()
+                                        }
+                                    ) {
+                                        EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
+                                    }
 
                                     // Centre : Espace réservé pour le poinçon de la caméra frontale
                                     Spacer(modifier = Modifier.width(36.dp))
 
-                                    // Côté droit : Miniature de l'album ou icône musicale (sans clickable interne pour ouvrir la carte au toucher)
+                                    // Côté droit : Miniature de l'album ou icône musicale (clic direct pour afficher la carte)
                                     val miniature = state.mediaTrack?.albumArt
-                                    if (miniature != null) {
-                                        Image(
-                                            bitmap = miniature.asImageBitmap(),
-                                            contentDescription = "Pochette miniature",
-                                            modifier = Modifier
-                                                .size(24.dp)
-                                                .clip(CircleShape)
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(24.dp)
-                                                .clip(CircleShape)
-                                                .background(
-                                                    Brush.linearGradient(
-                                                        listOf(Color(0xFF6366F1), Color(0xFFEC4899))
-                                                    )
-                                                ),
-                                            contentAlignment = Alignment.Center
+                                    Box(
+                                        modifier = Modifier.clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
                                         ) {
-                                            Text("♪", color = Color.White, fontSize = 12.sp)
+                                            viewModel.toggleExpand()
+                                        }
+                                    ) {
+                                        if (miniature != null) {
+                                            Image(
+                                                bitmap = miniature.asImageBitmap(),
+                                                contentDescription = "Pochette miniature",
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        Brush.linearGradient(
+                                                            listOf(Color(0xFF6366F1), Color(0xFFEC4899))
+                                                        )
+                                                    ),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text("♪", color = Color.White, fontSize = 12.sp)
+                                            }
                                         }
                                     }
                                 }

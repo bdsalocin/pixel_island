@@ -125,6 +125,10 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         val container = (application as PixelIslandApplication).appContainer
         val frameContainer = object : FrameLayout(this) {
+            private var startX = 0f
+            private var startY = 0f
+            private var startTime = 0L
+
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
                 if (event.action == MotionEvent.ACTION_OUTSIDE) {
                     val state = container.islandViewModel.uiState.value
@@ -133,6 +137,36 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                     }
                     return false
                 }
+
+                val state = container.islandViewModel.uiState.value
+                if (!state.isExpanded && state.isMusicActive) {
+                    when (event.actionMasked) {
+                        MotionEvent.ACTION_DOWN -> {
+                            startX = event.rawX
+                            startY = event.rawY
+                            startTime = System.currentTimeMillis()
+                        }
+                        MotionEvent.ACTION_UP -> {
+                            val duration = System.currentTimeMillis() - startTime
+                            val dx = kotlin.math.abs(event.rawX - startX)
+                            val dy = kotlin.math.abs(event.rawY - startY)
+                            if (duration < 500 && dx < 40 * density && dy < 40 * density) {
+                                container.islandViewModel.toggleExpand()
+                                return true
+                            }
+                        }
+                        MotionEvent.ACTION_CANCEL -> {
+                            val duration = System.currentTimeMillis() - startTime
+                            val dx = kotlin.math.abs(event.rawX - startX)
+                            val dy = kotlin.math.abs(event.rawY - startY)
+                            if (duration in 30..400 && dx < 25 * density && dy < 25 * density) {
+                                container.islandViewModel.toggleExpand()
+                                return true
+                            }
+                        }
+                    }
+                }
+
                 return super.dispatchTouchEvent(event)
             }
         }.apply {
@@ -167,6 +201,12 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 val targetFlags: Int
 
                 when {
+                    state.isFaceUnlockActive -> {
+                        // Déverrouillage visage : priorité absolue, dimensions complètes même si musique en fond
+                        targetWindowWidth = (190 * density).toInt()
+                        targetWindowHeight = (74 * density).toInt()
+                        targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    }
                     shouldBeExpanded -> {
                         // Carte de musique détaillée : dimensionnée au plus juste
                         targetWindowWidth = (310 * density).toInt()
@@ -174,16 +214,10 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
                     }
                     state.isMusicActive -> {
-                        // Pilule compacte : dimensionnée exactement à la taille de la capsule
-                        targetWindowWidth = (180 * density).toInt()
-                        targetWindowHeight = (40 * density).toInt()
-                        targetFlags = baseFlags
-                    }
-                    state.isFaceUnlockActive -> {
-                        // Déverrouillage visage : visuel uniquement, écran entièrement traversant pour les clics
+                        // Pilule compacte : zone réceptive confortable couvrant la pilule
                         targetWindowWidth = (190 * density).toInt()
-                        targetWindowHeight = (74 * density).toInt()
-                        targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        targetWindowHeight = (48 * density).toInt()
+                        targetFlags = baseFlags
                     }
                     else -> {
                         // Inactif : fenêtre 1x1 complètement non tactile

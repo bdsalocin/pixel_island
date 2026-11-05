@@ -63,9 +63,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.4
-          name: Pixel Island v1.4.4 APK
-          body: Dynamic Island correction blocage tactile ecran et dimensionnement exact
+          tag_name: v1.4.5
+          name: Pixel Island v1.4.5 APK
+          body: Dynamic Island priorite Face ID repli vers poincon et ouverture carte tactile gauche droite
           files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
