@@ -45,13 +45,23 @@ class AppContainer(private val context: Context) {
         TogglePlaybackUseCase(mediaRepository)
     }
 
+    val skipNextUseCase by lazy {
+        com.bdsalocin.pixelisland.domain.usecase.SkipNextUseCase(mediaRepository)
+    }
+
+    val skipPreviousUseCase by lazy {
+        com.bdsalocin.pixelisland.domain.usecase.SkipPreviousUseCase(mediaRepository)
+    }
+
     // ViewModel partagé
     val islandViewModel by lazy {
         IslandViewModel(
             observeActiveMediaUseCase = observeActiveMediaUseCase,
             observeUnlockStateUseCase = observeUnlockStateUseCase,
             calculateCutoutAnchorUseCase = calculateCutoutAnchorUseCase,
-            togglePlaybackUseCase = togglePlaybackUseCase
+            togglePlaybackUseCase = togglePlaybackUseCase,
+            skipNextUseCase = skipNextUseCase,
+            skipPreviousUseCase = skipPreviousUseCase
         )
     }
 }

@@ -74,7 +74,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         // Centrage physique absolu sur le poinçon du Google Pixel 8 Pro
         // Écran 1344 x 2992 px, caméra frontale centrée horizontalement à environ 30dp du haut.
         val density = resources.displayMetrics.density
-        val pillHeightPx = (34 * density).toInt()
+        val pillHeightPx = (40 * density).toInt()
         var cutoutCenterY = (30 * density).toInt()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -90,6 +90,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         val initialY = (cutoutCenterY - (pillHeightPx / 2)).coerceAtLeast(0)
 
         val windowFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
@@ -112,6 +113,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         val container = (application as PixelIslandApplication).appContainer
         composeView = ComposeView(this).apply {
+            isClickable = true
             setViewTreeLifecycleOwner(this@IslandOverlayService)
             setViewTreeSavedStateRegistryOwner(this@IslandOverlayService)
             setContent {

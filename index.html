@@ -119,6 +119,15 @@
               <span id="rotateBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Portrait</span>
             </button>
 
+            <!-- Bouton Power (Verrouillage avec fermeture fluide) -->
+            <button id="btnPower" onclick="togglePowerLock()" class="w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700">
+              <span class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                <span>Bouton Power (Verrouiller)</span>
+              </span>
+              <span id="lockBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Actif</span>
+            </button>
+
             <!-- Mode Agrandie / Détails -->
             <button id="btnExpand" onclick="toggleExpand()" class="w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700">
               <span class="flex items-center gap-2">
@@ -414,6 +423,33 @@
       }, 1600);
     }
 
+    let isPhoneLocked = false;
+    function togglePowerLock() {
+      isPhoneLocked = !isPhoneLocked;
+      const badge = document.getElementById('lockBadge');
+      triggerHaptic('medium');
+      if (isPhoneLocked) {
+        badge.textContent = 'Écran Verrouillé';
+        badge.className = 'text-xs px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300';
+        if (!isMusicActive) {
+          // Fermeture fluide sur elle-même dans le poinçon comme sur iPhone
+          isHidden = true;
+          isFaceActive = false;
+          isExpanded = false;
+        } else {
+          // Reste affichée écran verrouillé quand du son est toujours en cours
+          isHidden = false;
+          isFaceActive = false;
+          isExpanded = false;
+        }
+      } else {
+        badge.textContent = 'Déverrouillé';
+        badge.className = 'text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300';
+        triggerFaceUnlock();
+      }
+      renderState();
+    }
+
     function toggleRotation() {
       isLandscape = !isLandscape;
       triggerHaptic('medium');
@@ -581,9 +617,9 @@
         leftContent.classList.remove('opacity-0');
         rightContent.classList.remove('opacity-0');
       } else if (isMusicActive) {
-        // État Musique Compact Standard
-        island.style.width = '164px';
-        island.style.height = '34px';
+        // État Musique Compact Standard (Hauteur augmentée à 40px pour un confort haut/bas)
+        island.style.width = '180px';
+        island.style.height = '40px';
         island.style.borderRadius = '9999px';
         expandedContent.classList.add('opacity-0', 'hidden');
         faceContent.classList.add('opacity-0');
