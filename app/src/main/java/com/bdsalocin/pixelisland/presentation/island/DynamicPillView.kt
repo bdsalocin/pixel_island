@@ -161,6 +161,7 @@ fun DynamicPillView(
     LaunchedEffect(state.isExpanded) {
         if (!state.isExpanded && isDraggingCard) {
             isDraggingCard = false
+            launch { pillTopAnim.animateTo(targetTop.value, pillSpringSpec) }
             launch { pillBottomAnim.animateTo(targetBottom.value, pillSpringSpec) }
             launch { pillWidthAnim.animateTo(targetWidth.value, pillSpringSpec) }
             launch { pillCornerAnim.animateTo(targetCornerRadius.value, pillSpringSpec) }
@@ -652,7 +653,7 @@ private fun MediaProgressBarScrubber(
                                         break
                                     }
                                     change.consume()
-                                    val currentFrac = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                    val currentFrac = (change.position.x / barWidth).coerceIn(0f, 1f)
                                     scrubFraction = currentFrac
                                 }
                                 val finalTargetMs = (scrubFraction * durationMs).toLong()

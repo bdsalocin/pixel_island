@@ -151,6 +151,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
             private var startTime = 0L
             private var isLongPressTriggered = false
             private var isExpandedTouchDown = false
+            private var isCardMarginTouchDown = false
             private val longPressHandler = Handler(Looper.getMainLooper())
             private val longPressTimeout = 380L
             private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
@@ -182,25 +183,35 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                         startRawY = event.rawY
                         startTime = System.currentTimeMillis()
                         isExpandedTouchDown = true
+                        val cardWidthPx = 384f * d
+                        val cardHeightPx = 238f * d
+                        val currentW = if (width > 0) width.toFloat() else cardWidthPx
+                        val cardLeft = (currentW - cardWidthPx) / 2f
+                        val cardRight = (currentW + cardWidthPx) / 2f
+                        isCardMarginTouchDown = !(event.x in cardLeft..cardRight && event.y in 0f..cardHeightPx)
                     } else if (event.actionMasked == MotionEvent.ACTION_UP) {
                         if (isLongPressTriggered) {
                             isLongPressTriggered = false
                             isExpandedTouchDown = false
+                            isCardMarginTouchDown = false
                             return true
                         }
-                        if (isExpandedTouchDown && event.y < 40 * d) {
-                            val duration = System.currentTimeMillis() - startTime
-                            val dy = kotlin.math.abs(event.rawY - startRawY)
-                            if (duration < 600 && dy < 30 * d) {
-                                isExpandedTouchDown = false
-                                container.islandViewModel.collapseIsland()
-                                return true
-                            }
+                        val duration = System.currentTimeMillis() - startTime
+                        val dx = kotlin.math.abs(event.rawX - startRawX)
+                        val dy = kotlin.math.abs(event.rawY - startRawY)
+                        val isTap = duration < 600 && dx < 30 * d && dy < 30 * d
+                        if (isTap && (isCardMarginTouchDown || (isExpandedTouchDown && event.y < 40 * d))) {
+                            isExpandedTouchDown = false
+                            isCardMarginTouchDown = false
+                            container.islandViewModel.collapseIsland()
+                            return true
                         }
                         isExpandedTouchDown = false
+                        isCardMarginTouchDown = false
                     } else if (event.actionMasked == MotionEvent.ACTION_CANCEL) {
                         isLongPressTriggered = false
                         isExpandedTouchDown = false
+                        isCardMarginTouchDown = false
                     }
                     return super.dispatchTouchEvent(event)
                 }

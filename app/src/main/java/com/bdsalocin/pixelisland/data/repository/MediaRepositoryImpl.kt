@@ -246,40 +246,45 @@ class MediaRepositoryImpl(
         )
     }
 
+    private fun getOrResolveActiveController(): MediaController? {
+        return activeController ?: run {
+            resolveBestTrack()
+            activeController
+        }
+    }
+
     override suspend fun playPause() {
         try {
-            val playbackState = activeController?.playbackState?.state
+            val controller = getOrResolveActiveController()
+            val playbackState = controller?.playbackState?.state
             if (playbackState == PlaybackState.STATE_PLAYING) {
-                activeController?.transportControls?.pause()
+                controller?.transportControls?.pause()
             } else {
-                activeController?.transportControls?.play()
+                controller?.transportControls?.play()
             }
         } catch (_: Exception) {}
     }
 
     override suspend fun skipToNext() {
         try {
-            activeController?.transportControls?.skipToNext()
+            getOrResolveActiveController()?.transportControls?.skipToNext()
         } catch (_: Exception) {}
     }
 
     override suspend fun skipToPrevious() {
         try {
-            activeController?.transportControls?.skipToPrevious()
+            getOrResolveActiveController()?.transportControls?.skipToPrevious()
         } catch (_: Exception) {}
     }
 
     override suspend fun seekTo(positionMs: Long) {
         try {
-            activeController?.transportControls?.seekTo(positionMs)
+            getOrResolveActiveController()?.transportControls?.seekTo(positionMs)
         } catch (_: Exception) {}
     }
 
     override suspend fun openMusicApp() {
-        val controller = activeController ?: run {
-            resolveBestTrack()
-            activeController
-        }
+        val controller = getOrResolveActiveController()
         controller?.let { c ->
             c.sessionActivity?.let { pendingIntent ->
                 try {
