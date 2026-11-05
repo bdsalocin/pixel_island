@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Pixel Island</string>
+    <string name="accessibility_service_description">Permet à Pixel Island d\'afficher la Dynamic Island interactive autour du poinçon photo et de répondre aux clics tactiles.</string>
+</resources>

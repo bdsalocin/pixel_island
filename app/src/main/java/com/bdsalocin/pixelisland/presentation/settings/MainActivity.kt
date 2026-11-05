@@ -81,6 +81,18 @@ class MainActivity : ComponentActivity() {
 
                         Spacer(modifier = Modifier.height(14.dp))
 
+                        // Bouton d'activation de l'accessibilité pour le clic sur le poinçon
+                        Button(
+                            onClick = { requestAccessibilityPermission() },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+                        ) {
+                            Text("3. Activer le toucher (Accessibilité)")
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
                         // Démarrer le service
                         Button(
                             onClick = { startOverlayService() },
@@ -88,7 +100,7 @@ class MainActivity : ComponentActivity() {
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
                         ) {
-                            Text("3. Lancer Pixel Island")
+                            Text("4. Lancer Pixel Island")
                         }
                     }
                 }
@@ -108,6 +120,11 @@ class MainActivity : ComponentActivity() {
 
     private fun requestNotificationPermission() {
         val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        startActivity(intent)
+    }
+
+    private fun requestAccessibilityPermission() {
+        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         startActivity(intent)
     }
 

@@ -34,6 +34,14 @@ import kotlinx.coroutines.launch
 
 class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
+    companion object {
+        private var instance: IslandOverlayService? = null
+
+        fun removeOverlayIfPresent() {
+            instance?.removeOverlayView()
+        }
+    }
+
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
     private val serviceScope = CoroutineScope(Dispatchers.Main.immediate + Job())
@@ -50,6 +58,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
 
@@ -100,6 +109,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
     }
 
     private fun setupOverlayWindow() {
+        if (PixelIslandAccessibilityService.isAccessibilityServiceActive) return
         val density = resources.displayMetrics.density
         val pillHeightPx = (40 * density).toInt()
         val cutoutCenterY = getCutoutCenterY()
@@ -313,12 +323,22 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         } catch (_: Exception) {}
     }
 
+    private fun removeOverlayView() {
+        rootLayout?.let {
+            try {
+                windowManager.removeView(it)
+            } catch (_: Exception) {}
+            rootLayout = null
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
+        if (instance == this) instance = null
         serviceScope.cancel()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        rootLayout?.let { windowManager.removeView(it) }
+        removeOverlayView()
     }
 }
