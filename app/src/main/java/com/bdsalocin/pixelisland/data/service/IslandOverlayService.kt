@@ -160,9 +160,12 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 if (layoutParams.width != targetWindowWidth || layoutParams.height != targetWindowHeight) {
                     layoutParams.width = targetWindowWidth
                     layoutParams.height = targetWindowHeight
-                    try {
-                        windowManager.updateViewLayout(composeView, layoutParams)
-                    } catch (_: Exception) {}
+                    val view = composeView
+                    if (view != null) {
+                        try {
+                            windowManager.updateViewLayout(view, layoutParams)
+                        } catch (_: Exception) {}
+                    }
                 }
             }
         }

@@ -257,15 +257,9 @@ fun DynamicPillView(
                             // Barre de progression musicale
                             val durationMs = track?.durationMs ?: 0L
                             val positionMs = track?.positionMs ?: 0L
-                            val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0.35f
-                            val positionStr = if (positionMs > 0L) {
-                                val s = positionMs / 1000
-                                "%d:%02d".format(s / 60, s % 60)
-                            } else "0:00"
-                            val durationStr = if (durationMs > 0L) {
-                                val s = durationMs / 1000
-                                "%d:%02d".format(s / 60, s % 60)
-                            } else "--:--"
+                            val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0.01f, 1f) else 0.35f
+                            val positionStr = formatMediaTime(positionMs)
+                            val durationStr = if (durationMs > 0L) formatMediaTime(durationMs) else "--:--"
 
                             Column(
                                 modifier = Modifier.fillMaxWidth()
@@ -405,4 +399,13 @@ fun DynamicPillView(
             }
         }
     }
+}
+
+private fun formatMediaTime(ms: Long): String {
+    if (ms <= 0L) return "0:00"
+    val totalSec = ms / 1000
+    val min = totalSec / 60
+    val sec = totalSec % 60
+    val secStr = if (sec < 10) "0$sec" else "$sec"
+    return "$min:$secStr"
 }
