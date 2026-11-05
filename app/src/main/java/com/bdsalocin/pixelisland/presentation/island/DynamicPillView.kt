@@ -41,19 +41,20 @@ fun DynamicPillView(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    // Dimensions animées basées sur la physique des ressorts (Spring)
+    // Dimensions et rayons de courbure spécifiquement calqués sur le Pixel 8 Pro
+    // Largeur compacte limitée à 165dp pour préserver l'espace de l'heure et des icônes 5G et batterie
     val targetWidth = when {
-        state.isFaceUnlockActive -> 64.dp
-        state.isExpanded -> 320.dp
-        state.isMusicActive -> 190.dp
-        else -> 36.dp // Diamètre de base pour envelopper le poinçon
+        state.isFaceUnlockActive -> 56.dp
+        state.isExpanded -> 300.dp
+        state.isMusicActive -> 165.dp
+        else -> 30.dp // Diamètre repos entourant le capteur photo
     }
 
     val targetHeight = when {
-        state.isFaceUnlockActive -> 64.dp
-        state.isExpanded -> 140.dp
-        state.isMusicActive -> 36.dp
-        else -> 36.dp
+        state.isFaceUnlockActive -> 56.dp
+        state.isExpanded -> 146.dp
+        state.isMusicActive -> 34.dp
+        else -> 30.dp
     }
 
     val animatedWidth by animateDpAsState(
@@ -74,8 +75,9 @@ fun DynamicPillView(
         label = "PillHeightAnimation"
     )
 
+    // Rayon de courbure de 38dp en mode étendu pour respecter l'arrondi d'écran du Pixel 8 Pro
     val cornerRadius by animateDpAsState(
-        targetValue = if (state.isExpanded) 28.dp else 9999.dp,
+        targetValue = if (state.isExpanded) 38.dp else 9999.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMedium

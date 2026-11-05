@@ -144,26 +144,32 @@
               <div class="absolute inset-0 bg-gradient-to-b from-indigo-950/40 via-slate-950 to-slate-950 pointer-events-none"></div>
 
               <!-- Zone Barre d'état & Poinçon Caméra -->
-              <div class="relative w-full pt-2 px-6 flex justify-between items-center text-[11px] text-slate-300 select-none z-10">
-                <!-- Heure à gauche -->
-                <span class="font-semibold">09:41</span>
+              <!-- Padding latéral ajusté pour respecter l'arrondi physique de l'écran -->
+              <div class="relative w-full pt-3 px-7 flex justify-between items-center text-[11px] text-slate-300 select-none z-40 pointer-events-none">
+                <!-- Heure à gauche avec zone réservée -->
+                <div class="flex items-center gap-1 min-w-[55px]">
+                  <span class="font-semibold tracking-tight text-white/90">09:41</span>
+                </div>
 
-                <!-- Icônes Réseau & Batterie à droite -->
-                <div class="flex items-center gap-1.5 text-slate-300">
+                <!-- Espace central réservé pour le poinçon et l'îlot compact (Zone de sécurité garantie) -->
+                <div class="flex-1 flex justify-center"></div>
+
+                <!-- Icônes Réseau & Batterie à droite avec zone réservée -->
+                <div class="flex items-center gap-1.5 min-w-[65px] justify-end text-white/90">
                   <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm0 2c3.87 0 7 3.13 7 7 0 1.49-.47 2.88-1.27 4.03L12 19.38l-5.73-3.35C5.47 14.88 5 13.49 5 12c0-3.87 3.13-7 7-7z"/></svg>
-                  <span>5G</span>
-                  <div class="w-5 h-2.5 rounded-sm border border-slate-300 p-0.5 flex items-center">
-                    <div class="h-full bg-slate-200 rounded-2xs w-4"></div>
+                  <span class="text-[10px] font-medium">5G</span>
+                  <div class="w-5 h-2.5 rounded-[3px] border border-white/80 p-[1px] flex items-center">
+                    <div class="h-full bg-white rounded-[1.5px] w-3.5"></div>
                   </div>
                 </div>
               </div>
 
               <!-- CONTENEUR DU POINÇON PHYSIQUE ET DE LA DYNAMIC ISLAND -->
               <!-- Situé exactement au centre en haut de l'écran -->
-              <div class="absolute top-2 inset-x-0 flex justify-center items-center pointer-events-auto z-30">
+              <div class="absolute top-2.5 inset-x-0 flex justify-center items-center pointer-events-auto z-30">
                 
                 <!-- LA CAPSULE DYNAMIQUE (OLED Noir #000000 pour fusionner avec la caméra) -->
-                <div id="dynamicIsland" class="spring-transition bg-black text-white rounded-full flex items-center justify-between shadow-lg border border-white/5 relative overflow-hidden"
+                <div id="dynamicIsland" class="spring-transition bg-black text-white rounded-full flex items-center justify-between shadow-2xl border border-white/10 relative overflow-hidden ring-1 ring-black"
                      style="width: 32px; height: 32px; padding: 0 4px;">
                   
                   <!-- Éléments gauches : Onde sonore vibrante -->
@@ -367,39 +373,39 @@
         ? 'text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300' 
         : 'text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300';
 
-      // Dimensions & Contenu de l'île
+      // Dimensions & Contenu de l'île ajustés au Pixel 8 Pro
       if (isFaceActive) {
         // État Face ID : Cercle parfait autour du poinçon
-        island.style.width = '64px';
-        island.style.height = '64px';
+        island.style.width = '58px';
+        island.style.height = '58px';
         island.style.borderRadius = '9999px';
         leftContent.classList.add('opacity-0');
         rightContent.classList.add('opacity-0');
         expandedContent.classList.add('opacity-0', 'hidden');
         faceContent.classList.remove('opacity-0');
       } else if (isMusicActive && isExpanded) {
-        // État Musique Étendu (Carte complète)
-        island.style.width = '300px';
-        island.style.height = '145px';
-        island.style.borderRadius = '32px';
+        // État Musique Étendu : Arrondi de 38px pour épouser l'arrondi de l'écran du Pixel
+        island.style.width = '296px';
+        island.style.height = '146px';
+        island.style.borderRadius = '38px';
         leftContent.classList.add('opacity-0');
         rightContent.classList.add('opacity-0');
         faceContent.classList.add('opacity-0');
         expandedContent.classList.remove('hidden');
         setTimeout(() => expandedContent.classList.remove('opacity-0'), 150);
       } else if (isMusicActive) {
-        // État Musique Compact : Extension symétrique bilatérale
-        island.style.width = '190px';
-        island.style.height = '36px';
+        // État Musique Compact : Largeur de 164px pour garantir au moins 20px d'espace libre avec l'heure et la batterie
+        island.style.width = '164px';
+        island.style.height = '34px';
         island.style.borderRadius = '9999px';
         expandedContent.classList.add('opacity-0', 'hidden');
         faceContent.classList.add('opacity-0');
         leftContent.classList.remove('opacity-0');
         rightContent.classList.remove('opacity-0');
       } else {
-        // État Repos : Collé au capteur photo
-        island.style.width = '32px';
-        island.style.height = '32px';
+        // État Repos : Discrètement enveloppé autour de l'objectif
+        island.style.width = '30px';
+        island.style.height = '30px';
         island.style.borderRadius = '9999px';
         leftContent.classList.add('opacity-0');
         rightContent.classList.add('opacity-0');
