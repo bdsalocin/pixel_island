@@ -163,9 +163,10 @@ fun DynamicPillView(
     }
 
     val maxDragDp = 198.dp
+    val maxDragPx = with(density) { maxDragDp.toPx() }
     val upwardPx = (-dragOffsetY.value).coerceAtLeast(0f)
     val upwardDp = with(density) { upwardPx.toDp() }
-    val dragFraction = if (maxDragDp > 0.dp) (upwardDp / maxDragDp).coerceIn(0f, 1f) else 0f
+    val dragFraction = if (maxDragPx > 0f) (upwardPx / maxDragPx).coerceIn(0f, 1f) else 0f
 
     val currentPillBottom = if (isDraggingCard && state.isExpanded) {
         (targetBottom - upwardDp).coerceIn(40.dp, 238.dp)
@@ -174,7 +175,7 @@ fun DynamicPillView(
     }
 
     val currentPillWidth = if (isDraggingCard && state.isExpanded) {
-        (targetWidth - (dragFraction * (384.dp - 180.dp))).coerceIn(180.dp, 384.dp)
+        (384.dp - ((384.dp - 180.dp) * dragFraction)).coerceIn(180.dp, 384.dp)
     } else {
         animatedWidth
     }
@@ -194,7 +195,7 @@ fun DynamicPillView(
     )
 
     val currentPillCornerRadius = if (isDraggingCard && state.isExpanded) {
-        (40.dp + (dragFraction * 50.dp)).coerceAtMost(9999.dp)
+        (40.dp + (50.dp * dragFraction)).coerceAtMost(9999.dp)
     } else {
         cornerRadius
     }
