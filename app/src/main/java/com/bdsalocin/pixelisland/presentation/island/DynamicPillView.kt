@@ -2,6 +2,7 @@ package com.bdsalocin.pixelisland.presentation.island
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -19,6 +20,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,11 +39,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,14 +55,20 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bdsalocin.pixelisland.core.util.HapticFeedbackHelper
+import kotlinx.coroutines.launch
 import com.bdsalocin.pixelisland.presentation.island.components.ApplePlayPauseIcon
 import com.bdsalocin.pixelisland.presentation.island.components.AppleSkipNextIcon
 import com.bdsalocin.pixelisland.presentation.island.components.AppleSkipPreviousIcon
@@ -136,7 +147,45 @@ fun DynamicPillView(
         label = "PillWidthAnimation"
     )
 
-    val currentHeight = (animatedBottom - animatedTop).coerceAtLeast(0.dp)
+    val density = LocalDensity.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
+    var isDraggingCard by remember { mutableStateOf(false) }
+    val dragOffsetY = remember { Animatable(0f) }
+    val velocityTracker = remember { VelocityTracker() }
+
+    LaunchedEffect(state.isExpanded) {
+        if (!state.isExpanded) {
+            isDraggingCard = false
+            dragOffsetY.snapTo(0f)
+        }
+    }
+
+    val maxDragDp = 198.dp
+    val upwardPx = (-dragOffsetY.value).coerceAtLeast(0f)
+    val upwardDp = with(density) { upwardPx.toDp() }
+    val dragFraction = if (maxDragDp > 0.dp) (upwardDp / maxDragDp).coerceIn(0f, 1f) else 0f
+
+    val currentPillBottom = if (isDraggingCard && state.isExpanded) {
+        (targetBottom - upwardDp).coerceIn(40.dp, 238.dp)
+    } else {
+        animatedBottom
+    }
+
+    val currentPillWidth = if (isDraggingCard && state.isExpanded) {
+        (targetWidth - (dragFraction * (384.dp - 180.dp))).coerceIn(180.dp, 384.dp)
+    } else {
+        animatedWidth
+    }
+
+    val currentPillCornerRadius = if (isDraggingCard && state.isExpanded) {
+        (40.dp + (dragFraction * 50.dp)).coerceAtMost(9999.dp)
+    } else {
+        cornerRadius
+    }
+
+    val currentHeight = (currentPillBottom - animatedTop).coerceAtLeast(0.dp)
 
     // Rayon de courbure adapté : pilule parfaite en compact, squircle élégant pour Face ID et grande carte
     val cornerRadius by animateDpAsState(
@@ -162,13 +211,13 @@ fun DynamicPillView(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter
     ) {
-        if (animatedWidth > 0.5.dp && currentHeight > 0.5.dp) {
+        if (currentPillWidth > 0.5.dp && currentHeight > 0.5.dp) {
             Box(
                 modifier = modifier
                     .padding(top = animatedTop)
-                    .width(animatedWidth)
+                    .width(currentPillWidth)
                     .height(currentHeight)
-                    .clip(RoundedCornerShape(cornerRadius))
+                    .clip(RoundedCornerShape(currentPillCornerRadius))
                     .background(Color.Black),
                 contentAlignment = Alignment.TopCenter
             ) {
@@ -228,10 +277,79 @@ fun DynamicPillView(
                             // Vue Musique Détaillée (Grande carte étirée sur les côtés, pochette 64dp, titre 18sp, scrubbing et icônes Apple)
                             IslandStage.EXPANDED_CARD -> {
                                 val track = state.mediaTrack
+                                val dragContentScale = if (isDraggingCard) (1f - dragFraction * 0.12f).coerceIn(0.88f, 1f) else 1f
+                                val dragContentAlpha = if (isDraggingCard) (1f - dragFraction * 0.45f).coerceIn(0f, 1f) else 1f
+
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(238.dp)
+                                        .graphicsLayer {
+                                            scaleX = dragContentScale
+                                            scaleY = dragContentScale
+                                            alpha = dragContentAlpha
+                                            transformOrigin = TransformOrigin(0.5f, 0f)
+                                        }
+                                        .pointerInput(state.isExpanded) {
+                                            if (!state.isExpanded) return@pointerInput
+                                            detectVerticalDragGestures(
+                                                onDragStart = {
+                                                    velocityTracker.resetTracking()
+                                                    isDraggingCard = true
+                                                },
+                                                onDragEnd = {
+                                                    val velocityY = velocityTracker.calculateVelocity().y
+                                                    val displacementDp = with(density) { (-dragOffsetY.value).toDp() }
+                                                    val shouldDismiss = displacementDp >= 50.dp || velocityY <= -800f
+
+                                                    coroutineScope.launch {
+                                                        if (shouldDismiss) {
+                                                            HapticFeedbackHelper.performConfirmationFeedback(context)
+                                                            dragOffsetY.animateTo(
+                                                                targetValue = -with(density) { maxDragDp.toPx() },
+                                                                animationSpec = spring(
+                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                    stiffness = 500f
+                                                                )
+                                                            )
+                                                            viewModel.collapseIsland()
+                                                            dragOffsetY.snapTo(0f)
+                                                            isDraggingCard = false
+                                                        } else {
+                                                            dragOffsetY.animateTo(
+                                                                targetValue = 0f,
+                                                                animationSpec = spring(
+                                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                                    stiffness = 450f
+                                                                )
+                                                            )
+                                                            isDraggingCard = false
+                                                        }
+                                                    }
+                                                },
+                                                onDragCancel = {
+                                                    coroutineScope.launch {
+                                                        dragOffsetY.animateTo(
+                                                            targetValue = 0f,
+                                                            animationSpec = spring(
+                                                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                stiffness = 450f
+                                                            )
+                                                        )
+                                                        isDraggingCard = false
+                                                    }
+                                                },
+                                                onVerticalDrag = { change, dragAmount ->
+                                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                                    change.consume()
+                                                    val maxPx = with(density) { maxDragDp.toPx() }
+                                                    val newOffset = (dragOffsetY.value + dragAmount).coerceIn(-maxPx, 0f)
+                                                    coroutineScope.launch {
+                                                        dragOffsetY.snapTo(newOffset)
+                                                    }
+                                                }
+                                            )
+                                        }
                                         .padding(top = 42.dp, bottom = 16.dp, start = 20.dp, end = 20.dp),
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
@@ -398,6 +516,17 @@ fun DynamicPillView(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(40.dp)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onTap = {
+                                                    viewModel.onOpenMusicAppClicked()
+                                                },
+                                                onLongPress = {
+                                                    HapticFeedbackHelper.performTapticFeedback(context)
+                                                    viewModel.expandIsland()
+                                                }
+                                            )
+                                        }
                                         .padding(horizontal = 12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
@@ -407,14 +536,7 @@ fun DynamicPillView(
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .fillMaxHeight()
-                                            .background(Color.Transparent)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                viewModel.toggleExpand()
-                                            },
+                                            .fillMaxHeight(),
                                         contentAlignment = Alignment.CenterStart
                                     ) {
                                         if (miniature != null) {
@@ -430,11 +552,11 @@ fun DynamicPillView(
                                                 modifier = Modifier
                                                     .size(26.dp)
                                                     .clip(CircleShape)
-                                                .background(
-                                                    Brush.linearGradient(
-                                                        listOf(Color(0xFF6366F1), Color(0xFFEC4899))
-                                                    )
-                                                ),
+                                                    .background(
+                                                        Brush.linearGradient(
+                                                            listOf(Color(0xFF6366F1), Color(0xFFEC4899))
+                                                        )
+                                                    ),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text("♪", color = Color.White, fontSize = 12.sp)
@@ -449,14 +571,7 @@ fun DynamicPillView(
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .fillMaxHeight()
-                                            .background(Color.Transparent)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                viewModel.toggleExpand()
-                                            },
+                                            .fillMaxHeight(),
                                         contentAlignment = Alignment.CenterEnd
                                     ) {
                                         EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)

@@ -106,6 +106,12 @@ class IslandViewModel(
         _uiState.update { it.copy(isExpanded = !it.isExpanded) }
     }
 
+    fun expandIsland() {
+        if (!_uiState.value.isExpanded) {
+            _uiState.update { it.copy(isExpanded = true) }
+        }
+    }
+
     fun collapseIsland() {
         if (_uiState.value.isExpanded) {
             _uiState.update { it.copy(isExpanded = false) }

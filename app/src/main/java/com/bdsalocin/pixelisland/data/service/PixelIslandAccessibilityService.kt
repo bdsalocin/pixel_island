@@ -5,13 +5,17 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.Surface
+import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.FrameLayout
 import androidx.compose.ui.platform.ComposeView
+import com.bdsalocin.pixelisland.core.util.HapticFeedbackHelper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -126,14 +130,26 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         val frameContainer = object : FrameLayout(this) {
             private var startRawX = 0f
             private var startRawY = 0f
-            private var startLocalX = 0f
             private var startTime = 0L
+            private var isLongPressTriggered = false
+            private val longPressHandler = Handler(Looper.getMainLooper())
+            private val longPressTimeout = 380L
+            private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
+
+            private val longPressRunnable = Runnable {
+                val state = container.islandViewModel.uiState.value
+                if (state.isMusicActive && !state.isExpanded) {
+                    isLongPressTriggered = true
+                    HapticFeedbackHelper.performTapticFeedback(this@PixelIslandAccessibilityService, this)
+                    container.islandViewModel.expandIsland()
+                }
+            }
 
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
                 if (event.action == MotionEvent.ACTION_OUTSIDE) {
                     val state = container.islandViewModel.uiState.value
                     if (state.isExpanded) {
-                        container.islandViewModel.toggleExpand()
+                        container.islandViewModel.collapseIsland()
                     }
                     return false
                 }
@@ -141,48 +157,57 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
                 val state = container.islandViewModel.uiState.value
                 val d = resources.displayMetrics.density
 
-                // Si la carte est ouverte et qu'on tape dans la marge au-dessus (zone barre d'état)
                 if (state.isExpanded) {
-                    if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 40 * d) {
-                        container.islandViewModel.toggleExpand()
-                        return true
+                    if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                        startRawX = event.rawX
+                        startRawY = event.rawY
+                        startTime = System.currentTimeMillis()
+                    } else if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 40 * d) {
+                        val duration = System.currentTimeMillis() - startTime
+                        val dy = kotlin.math.abs(event.rawY - startRawY)
+                        if (duration < 600 && dy < 30 * d) {
+                            container.islandViewModel.collapseIsland()
+                            return true
+                        }
                     }
                     return super.dispatchTouchEvent(event)
                 }
 
-                // Si l'îlot est en mode compact musique :
                 if (state.isMusicActive) {
-                    val w = if (width > 0) width.toFloat() else (180f * d)
-                    val centerX = w / 2f
-                    val deadZone = 16f * d // 32dp au centre réservé pour le capteur photo
-
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             startRawX = event.rawX
                             startRawY = event.rawY
-                            startLocalX = event.x
                             startTime = System.currentTimeMillis()
-                            // Consommer ACTION_DOWN pour garantir la réception de ACTION_UP par le système
+                            isLongPressTriggered = false
+                            longPressHandler.removeCallbacks(longPressRunnable)
+                            longPressHandler.postDelayed(longPressRunnable, longPressTimeout)
+                            return true
+                        }
+                        MotionEvent.ACTION_MOVE -> {
+                            val dx = kotlin.math.abs(event.rawX - startRawX)
+                            val dy = kotlin.math.abs(event.rawY - startRawY)
+                            if (dx > touchSlop || dy > touchSlop) {
+                                longPressHandler.removeCallbacks(longPressRunnable)
+                            }
                             return true
                         }
                         MotionEvent.ACTION_UP -> {
-                            val duration = System.currentTimeMillis() - startTime
-                            val dx = kotlin.math.abs(event.rawX - startRawX)
-                            val dy = kotlin.math.abs(event.rawY - startRawY)
-                            val isTap = duration < 800 && dx < 40 * d && dy < 40 * d
-
-                            if (isTap) {
-                                val isLeftWing = (startLocalX < centerX - deadZone) || (event.x < centerX - deadZone)
-                                val isRightWing = (startLocalX > centerX + deadZone) || (event.x > centerX + deadZone)
-
-                                if (isLeftWing || isRightWing) {
-                                    container.islandViewModel.toggleExpand()
-                                    return true
+                            longPressHandler.removeCallbacks(longPressRunnable)
+                            if (!isLongPressTriggered) {
+                                val duration = System.currentTimeMillis() - startTime
+                                val dx = kotlin.math.abs(event.rawX - startRawX)
+                                val dy = kotlin.math.abs(event.rawY - startRawY)
+                                val isTap = duration < longPressTimeout && dx <= touchSlop && dy <= touchSlop
+                                if (isTap) {
+                                    container.islandViewModel.onOpenMusicAppClicked()
                                 }
                             }
                             return true
                         }
                         MotionEvent.ACTION_CANCEL -> {
+                            longPressHandler.removeCallbacks(longPressRunnable)
+                            isLongPressTriggered = false
                             return true
                         }
                     }
