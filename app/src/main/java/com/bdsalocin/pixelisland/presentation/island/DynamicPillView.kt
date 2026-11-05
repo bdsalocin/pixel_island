@@ -1,6 +1,7 @@
 package com.bdsalocin.pixelisland.presentation.island
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -11,9 +12,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,18 +37,29 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bdsalocin.pixelisland.presentation.island.components.ApplePlayPauseIcon
+import com.bdsalocin.pixelisland.presentation.island.components.AppleSkipNextIcon
+import com.bdsalocin.pixelisland.presentation.island.components.AppleSkipPreviousIcon
 import com.bdsalocin.pixelisland.presentation.island.components.EqualizerBars
 import com.bdsalocin.pixelisland.presentation.island.components.FaceUnlockScanner
 
@@ -76,14 +91,14 @@ fun DynamicPillView(
 
     val targetBottom = when {
         state.isFaceUnlockActive -> 80.dp  // Format carré arrondi type iPhone (80dp)
-        state.isExpanded -> 204.dp        // Carte agrandie généreuse et abaissée sous le poinçon
+        state.isExpanded -> 238.dp        // Carte agrandie généreuse pour loger la grande pochette et le scrubbing
         state.isMusicActive -> 40.dp      // Hauteur compacte 40dp centrée sur le poinçon
         else -> 28.dp                     // Repli vers le centre du poinçon (y=20dp)
     }
 
     val targetWidth = when {
         state.isFaceUnlockActive -> 80.dp  // Format carré 80dp sur 80dp
-        state.isExpanded -> 324.dp         // Largeur agrandie 324dp pour une parfaite lisibilité
+        state.isExpanded -> 384.dp         // Carte étendue allant presque sur les côtés de l'écran (~14dp de marge latérale)
         state.isMusicActive -> 180.dp     // 180dp pour la pilule musique compacte
         else -> 0.dp                      // Rétraction à 0dp en largeur
     }
@@ -96,10 +111,10 @@ fun DynamicPillView(
         else -> IslandStage.HIDDEN
     }
 
-    // Ressort haute performance (amortissement 0.88f et raideur 500f) sans oscillations parasites
+    // Amortissement critique sans rebond (DampingRatioNoBouncy) pour une fluidité absolue à 120 FPS
     val pillSpringSpec = spring<Dp>(
-        dampingRatio = 0.88f,
-        stiffness = 500f
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = 450f
     )
 
     val animatedTop by animateDpAsState(
@@ -122,16 +137,16 @@ fun DynamicPillView(
 
     val currentHeight = (animatedBottom - animatedTop).coerceAtLeast(0.dp)
 
-    // Rayon de courbure adapté : pilule parfaite en compact, carré arrondi pour Face ID et carte
+    // Rayon de courbure adapté : pilule parfaite en compact, squircle élégant pour Face ID et grande carte
     val cornerRadius by animateDpAsState(
         targetValue = when {
-            state.isExpanded -> 38.dp
+            state.isExpanded -> 40.dp
             state.isFaceUnlockActive -> 24.dp
             else -> 9999.dp
         },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = 500f
+            stiffness = 450f
         ),
         label = "PillCornerAnimation"
     )
@@ -167,23 +182,27 @@ fun DynamicPillView(
                         transitionSpec = {
                             when {
                                 initialState == IslandStage.COMPACT_MUSIC && targetState == IslandStage.EXPANDED_CARD -> {
-                                    (fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.94f, animationSpec = tween(180, easing = FastOutSlowInEasing))) togetherWith
-                                            fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
+                                    (fadeIn(animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.94f, animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)))
+                                        .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
+                                        .using(SizeTransform(clip = false) { _, _ -> null })
                                 }
                                 initialState == IslandStage.EXPANDED_CARD && targetState == IslandStage.COMPACT_MUSIC -> {
-                                    (fadeIn(animationSpec = tween(160, delayMillis = 60, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.90f, animationSpec = tween(160, delayMillis = 60, easing = FastOutSlowInEasing))) togetherWith
-                                            fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
+                                    (fadeIn(animationSpec = tween(160, delayMillis = 50, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.92f, animationSpec = tween(160, delayMillis = 50, easing = FastOutSlowInEasing)))
+                                        .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
+                                        .using(SizeTransform(clip = false) { _, _ -> null })
                                 }
                                 initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.COMPACT_MUSIC -> {
-                                    (fadeIn(animationSpec = tween(180, delayMillis = 60, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.92f, animationSpec = tween(180, delayMillis = 60, easing = FastOutSlowInEasing))) togetherWith
-                                            fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
+                                    (fadeIn(animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.92f, animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)))
+                                        .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
+                                        .using(SizeTransform(clip = false) { _, _ -> null })
                                 }
                                 else -> {
-                                    fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) togetherWith
-                                            fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
+                                    fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing))
+                                        .togetherWith(fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing)))
+                                        .using(SizeTransform(clip = false) { _, _ -> null })
                                 }
                             }
                         },
@@ -205,17 +224,17 @@ fun DynamicPillView(
                                 }
                             }
 
-                            // Vue Musique Détaillée (Carte abaissée sous le poinçon avec textes et icônes agrandis)
+                            // Vue Musique Détaillée (Grande carte étirée sur les côtés, pochette 64dp, titre 18sp, scrubbing et icônes Apple)
                             IslandStage.EXPANDED_CARD -> {
                                 val track = state.mediaTrack
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(204.dp)
-                                        .padding(top = 44.dp, bottom = 18.dp, start = 18.dp, end = 18.dp),
+                                        .height(238.dp)
+                                        .padding(top = 42.dp, bottom = 16.dp, start = 20.dp, end = 20.dp),
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    // En-tête : Pochette agrandie (54dp), Titre en gras (16sp), Artiste (13sp) et Visualiseur sonore
+                                    // En-tête : Grande pochette (64dp), Titre agrandi (18sp), Artiste (14sp) et Égaliseur à droite
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -239,14 +258,14 @@ fun DynamicPillView(
                                                     bitmap = albumArt.asImageBitmap(),
                                                     contentDescription = "Pochette d'album",
                                                     modifier = Modifier
-                                                        .size(54.dp)
-                                                        .clip(RoundedCornerShape(14.dp))
+                                                        .size(64.dp)
+                                                        .clip(RoundedCornerShape(16.dp))
                                                 )
                                             } else {
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(54.dp)
-                                                        .clip(RoundedCornerShape(14.dp))
+                                                        .size(64.dp)
+                                                        .clip(RoundedCornerShape(16.dp))
                                                         .background(
                                                             Brush.linearGradient(
                                                                 listOf(Color(0xFF6366F1), Color(0xFFEC4899))
@@ -254,7 +273,7 @@ fun DynamicPillView(
                                                         ),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Text("♪", color = Color.White, fontSize = 26.sp)
+                                                    Text("♪", color = Color.White, fontSize = 28.sp)
                                                 }
                                             }
 
@@ -265,20 +284,22 @@ fun DynamicPillView(
                                                 Text(
                                                     text = track?.title ?: "Média en cours",
                                                     color = Color.White,
-                                                    fontSize = 16.sp,
+                                                    fontSize = 18.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    maxLines = 1
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
                                                 Text(
                                                     text = if (!track?.artist.isNullOrBlank()) track?.artist ?: "" else track?.appName ?: "",
-                                                    color = Color(0xFFD1D5DB),
-                                                    fontSize = 13.sp,
-                                                    maxLines = 1
+                                                    color = Color(0xFF9CA3AF),
+                                                    fontSize = 14.sp,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
                                                 )
                                             }
                                         }
 
-                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Spacer(modifier = Modifier.width(12.dp))
 
                                         Box(
                                             modifier = Modifier.clickable(
@@ -292,55 +313,28 @@ fun DynamicPillView(
                                         }
                                     }
 
-                                    // Barre de progression musicale agrandie (5dp) avec libellés temporels clairs (11sp)
+                                    // Barre de progression tactile interactive avec scrubbing au doigt en temps réel
                                     val durationMs = track?.durationMs ?: 0L
                                     val positionMs = track?.positionMs ?: 0L
-                                    val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0.01f, 1f) else 0.35f
-                                    val positionStr = formatMediaTime(positionMs)
-                                    val durationStr = if (durationMs > 0L) formatMediaTime(durationMs) else "--:--"
 
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(5.dp)
-                                                .clip(RoundedCornerShape(2.5.dp))
-                                                .background(Color.White.copy(alpha = 0.2f))
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth(progress)
-                                                    .height(5.dp)
-                                                    .clip(RoundedCornerShape(2.5.dp))
-                                                    .background(Color.White)
-                                            )
+                                    MediaProgressBarScrubber(
+                                        positionMs = positionMs,
+                                        durationMs = durationMs,
+                                        onSeek = { targetMs ->
+                                            viewModel.onSeek(targetMs)
                                         }
+                                    )
 
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 4.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(positionStr, color = Color(0xFF9CA3AF), fontSize = 11.sp)
-                                            Text(durationStr, color = Color(0xFF9CA3AF), fontSize = 11.sp)
-                                        }
-                                    }
-
-                                    // Commandes multimédias agrandies : Précédent (46dp), Lecture / Pause (54dp), Suivant (46dp)
+                                    // Commandes multimédias Apple : Précédent (48dp), Bouton central blanc Lecture / Pause (56dp), Suivant (48dp)
                                     Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = 2.dp),
+                                        modifier = Modifier.fillMaxWidth(),
                                         horizontalArrangement = Arrangement.Center,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        // Piste précédente
+                                        // Piste précédente style Apple
                                         Box(
                                             modifier = Modifier
-                                                .size(46.dp)
+                                                .size(48.dp)
                                                 .clip(CircleShape)
                                                 .clickable(
                                                     interactionSource = remember { MutableInteractionSource() },
@@ -350,15 +344,15 @@ fun DynamicPillView(
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("⏮", color = Color.White, fontSize = 22.sp)
+                                            AppleSkipPreviousIcon(tint = Color.White)
                                         }
 
-                                        Spacer(modifier = Modifier.width(32.dp))
+                                        Spacer(modifier = Modifier.width(36.dp))
 
-                                        // Lecture / Pause principal agrandi
+                                        // Bouton central blanc Apple pour Lecture / Pause
                                         Box(
                                             modifier = Modifier
-                                                .size(54.dp)
+                                                .size(56.dp)
                                                 .clip(CircleShape)
                                                 .background(Color.White)
                                                 .clickable(
@@ -369,20 +363,19 @@ fun DynamicPillView(
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text(
-                                                text = if (track?.isPlaying == true) "❚❚" else "▶",
-                                                color = Color.Black,
-                                                fontSize = 24.sp,
-                                                fontWeight = FontWeight.Bold
+                                            ApplePlayPauseIcon(
+                                                isPlaying = track?.isPlaying == true,
+                                                tint = Color.Black,
+                                                sizeDp = 22.dp
                                             )
                                         }
 
-                                        Spacer(modifier = Modifier.width(32.dp))
+                                        Spacer(modifier = Modifier.width(36.dp))
 
-                                        // Piste suivante
+                                        // Piste suivante style Apple
                                         Box(
                                             modifier = Modifier
-                                                .size(46.dp)
+                                                .size(48.dp)
                                                 .clip(CircleShape)
                                                 .clickable(
                                                     interactionSource = remember { MutableInteractionSource() },
@@ -392,7 +385,7 @@ fun DynamicPillView(
                                                 },
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("⏭", color = Color.White, fontSize = 22.sp)
+                                            AppleSkipNextIcon(tint = Color.White)
                                         }
                                     }
                                 }
@@ -436,11 +429,11 @@ fun DynamicPillView(
                                                 modifier = Modifier
                                                     .size(26.dp)
                                                     .clip(CircleShape)
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            listOf(Color(0xFF6366F1), Color(0xFFEC4899))
-                                                        )
-                                                    ),
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        listOf(Color(0xFF6366F1), Color(0xFFEC4899))
+                                                    )
+                                                ),
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text("♪", color = Color.White, fontSize = 12.sp)
@@ -477,6 +470,131 @@ fun DynamicPillView(
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Barre de progression multimédia avec contrôle tactile et scrubbing direct au doigt en temps réel.
+ */
+@Composable
+private fun MediaProgressBarScrubber(
+    positionMs: Long,
+    durationMs: Long,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubFraction by remember { mutableFloatStateOf(0f) }
+
+    val currentProgress = if (durationMs > 0L) {
+        (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0.30f
+    }
+
+    val displayProgress = if (isScrubbing) scrubFraction else currentProgress
+    val displayPositionMs = if (isScrubbing) {
+        (scrubFraction * durationMs).toLong()
+    } else {
+        positionMs
+    }
+
+    val positionStr = formatMediaTime(displayPositionMs)
+    val durationStr = if (durationMs > 0L) formatMediaTime(durationMs) else "--:--"
+
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(30.dp)
+                .pointerInput(durationMs) {
+                    if (durationMs <= 0L) return@pointerInput
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val barWidth = size.width.toFloat()
+                        if (barWidth > 0f) {
+                            isScrubbing = true
+                            scrubFraction = (down.position.x / barWidth).coerceIn(0f, 1f)
+                        }
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                change.consume()
+                                break
+                            }
+                            change.consume()
+                            val currentFrac = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                            scrubFraction = currentFrac
+                        }
+                        val finalTargetMs = (scrubFraction * durationMs).toLong()
+                        isScrubbing = false
+                        onSeek(finalTargetMs)
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(30.dp)
+            ) {
+                val w = size.width
+                val h = size.height
+                val trackHeight = if (isScrubbing) 6.dp.toPx() else 4.5f.dp.toPx()
+                val trackRadius = CornerRadius(trackHeight / 2f, trackHeight / 2f)
+                val trackTop = (h - trackHeight) / 2f
+                val activeWidth = (displayProgress * w).coerceIn(0f, w)
+
+                // Piste de fond
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.22f),
+                    topLeft = Offset(0f, trackTop),
+                    size = Size(w, trackHeight),
+                    cornerRadius = trackRadius
+                )
+
+                // Piste active blanche
+                if (activeWidth > 0f) {
+                    drawRoundRect(
+                        color = Color.White,
+                        topLeft = Offset(0f, trackTop),
+                        size = Size(activeWidth, trackHeight),
+                        cornerRadius = trackRadius
+                    )
+                }
+
+                // Curseur Apple
+                val thumbRadius = if (isScrubbing) 7.dp.toPx() else 4.5f.dp.toPx()
+                val thumbCenterX = activeWidth.coerceIn(thumbRadius, w - thumbRadius)
+                drawCircle(
+                    color = Color.White,
+                    radius = thumbRadius,
+                    center = Offset(thumbCenterX, h / 2f)
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 1.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = positionStr,
+                color = if (isScrubbing) Color.White else Color(0xFF9CA3AF),
+                fontSize = 12.sp,
+                fontWeight = if (isScrubbing) FontWeight.SemiBold else FontWeight.Normal
+            )
+            Text(
+                text = durationStr,
+                color = Color(0xFF9CA3AF),
+                fontSize = 12.sp
+            )
         }
     }
 }

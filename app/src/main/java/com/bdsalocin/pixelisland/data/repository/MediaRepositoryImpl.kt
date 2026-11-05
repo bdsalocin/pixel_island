@@ -269,6 +269,12 @@ class MediaRepositoryImpl(
         } catch (_: Exception) {}
     }
 
+    override suspend fun seekTo(positionMs: Long) {
+        try {
+            activeController?.transportControls?.seekTo(positionMs)
+        } catch (_: Exception) {}
+    }
+
     override suspend fun openMusicApp() {
         activeController?.let { controller ->
             val launchIntent = context.packageManager.getLaunchIntentForPackage(controller.packageName)

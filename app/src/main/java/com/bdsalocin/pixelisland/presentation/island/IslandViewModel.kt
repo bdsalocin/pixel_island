@@ -6,6 +6,7 @@ import com.bdsalocin.pixelisland.domain.usecase.CalculateCutoutAnchorUseCase
 import com.bdsalocin.pixelisland.domain.usecase.ObserveActiveMediaUseCase
 import com.bdsalocin.pixelisland.domain.usecase.ObserveUnlockStateUseCase
 import com.bdsalocin.pixelisland.domain.usecase.OpenMusicAppUseCase
+import com.bdsalocin.pixelisland.domain.usecase.SeekToUseCase
 import com.bdsalocin.pixelisland.domain.usecase.SkipNextUseCase
 import com.bdsalocin.pixelisland.domain.usecase.SkipPreviousUseCase
 import com.bdsalocin.pixelisland.domain.usecase.TogglePlaybackUseCase
@@ -23,7 +24,8 @@ class IslandViewModel(
     private val togglePlaybackUseCase: TogglePlaybackUseCase,
     private val skipNextUseCase: SkipNextUseCase,
     private val skipPreviousUseCase: SkipPreviousUseCase,
-    private val openMusicAppUseCase: OpenMusicAppUseCase
+    private val openMusicAppUseCase: OpenMusicAppUseCase,
+    private val seekToUseCase: SeekToUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(IslandUiState())
@@ -131,6 +133,12 @@ class IslandViewModel(
     fun onOpenMusicAppClicked() {
         viewModelScope.launch {
             openMusicAppUseCase()
+        }
+    }
+
+    fun onSeek(positionMs: Long) {
+        viewModelScope.launch {
+            seekToUseCase(positionMs)
         }
     }
 }

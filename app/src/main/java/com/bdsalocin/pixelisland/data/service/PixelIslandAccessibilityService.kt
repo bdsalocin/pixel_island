@@ -261,8 +261,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
             shouldBeExpanded -> {
-                targetWindowWidth = (328 * density).toInt()
-                targetWindowHeight = (208 * density).toInt()
+                targetWindowWidth = (390 * density).toInt()
+                targetWindowHeight = (244 * density).toInt()
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
             }
             state.isMusicActive -> {
