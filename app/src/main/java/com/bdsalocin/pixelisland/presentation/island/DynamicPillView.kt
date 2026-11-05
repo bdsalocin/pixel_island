@@ -71,14 +71,14 @@ fun DynamicPillView(
     // Calcul dynamique des bornes haut et bas pour garantir un centrage absolu sur le poinçon
     val targetTop = when {
         state.isFaceUnlockActive -> 0.dp
-        state.isExpanded -> 46.dp // Descend sous la barre d'état (44dp) pour dégager l'heure, la date et le réseau
+        state.isExpanded -> 38.dp // Descend sous la barre d'état pour dégager l'heure, la date et le réseau
         state.isMusicActive -> 0.dp
         else -> 12.dp // S'arrête exactement au bord supérieur du poinçon lors du repli
     }
 
     val targetBottom = when {
         state.isFaceUnlockActive -> 54.dp // Compact 54dp : même largeur 180dp que la musique pour zéro saut horizontal
-        state.isExpanded -> 206.dp // 46dp + 160dp
+        state.isExpanded -> 198.dp // 38dp + 160dp
         state.isMusicActive -> 40.dp
         else -> 28.dp // Se rétracte directement vers le poinçon
     }
@@ -180,7 +180,13 @@ fun DynamicPillView(
                     .width(animatedWidth)
                     .height(currentHeight)
                     .clip(RoundedCornerShape(cornerRadius))
-                    .background(Color.Black),
+                    .background(Color.Black)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        // Consomme l'interaction Compose pour valider le geste tactile au niveau système
+                    },
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(

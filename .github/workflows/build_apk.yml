@@ -63,9 +63,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.7
-          name: Pixel Island v1.4.7 APK
-          body: Dynamic Island centrage physique Pixel 8 Pro, ouverture tactile instantanee et carte abaissee sous barre d etat
+          tag_name: v1.4.8
+          name: Pixel Island v1.4.8 APK
+          body: Dynamic Island stabilite parfaite, suppression boucle insets, ouverture tactile ailes et carte sous statut
           files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

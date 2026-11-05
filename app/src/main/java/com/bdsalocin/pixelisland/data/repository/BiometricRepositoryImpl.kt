@@ -42,9 +42,9 @@ class BiometricRepositoryImpl(
                         scanTimeoutJob?.cancel()
                         dismissJob?.cancel()
                         trySend(BiometricStatus.SUCCESS)
-                        // Transition rapide et fluide sans latence (350ms)
+                        // Transition ultra rapide et fluide sans latence (280ms)
                         dismissJob = scope.launch {
-                            delay(350)
+                            delay(280)
                             trySend(BiometricStatus.IDLE)
                         }
                     }

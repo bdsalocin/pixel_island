@@ -86,7 +86,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         } else {
             (44 * resources.displayMetrics.density).toInt()
         }
-        // Sur le Google Pixel 8 Pro, le capteur photo frontal est rigoureusement centré dans la barre d'état
         return statusBarHeight / 2
     }
 
@@ -101,8 +100,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
-        // Au repos l'îlot est inactif, le drapeau FLAG_NOT_TOUCHABLE et des dimensions 1x1 garantissent
-        // que pas un seul pixel de l'écran n'est bloqué aux clics
         val initialFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
 
         overlayLayoutParams = WindowManager.LayoutParams(
@@ -125,8 +122,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         val frameContainer = object : FrameLayout(this) {
             private var startRawX = 0f
             private var startRawY = 0f
-            private var startLocalX = 0f
-            private var startLocalY = 0f
             private var startTime = 0L
 
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -141,57 +136,40 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 val state = container.islandViewModel.uiState.value
                 val d = resources.displayMetrics.density
 
-                // Si la carte est ouverte et qu'on tape dans la marge au-dessus de la carte (zone barre d'état)
+                // Si la carte est ouverte et qu'on tape dans la marge au-dessus (zone barre d'état)
                 if (state.isExpanded) {
-                    if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 46 * d) {
+                    if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 38 * d) {
                         container.islandViewModel.toggleExpand()
                         return true
                     }
                 }
 
                 // Si l'îlot est en mode compact musique :
-                // Déclencher l'ouverture sur un tap franc sur l'aile gauche (égaliseur) ou l'aile droite (pochette)
                 if (!state.isExpanded && state.isMusicActive) {
-                    val centerX = width / 2f
-                    val deadZoneRadius = 18 * d // Zone centrale de 36dp exclue (alignée sur le poinçon)
-
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
                             startRawX = event.rawX
                             startRawY = event.rawY
-                            startLocalX = event.x
-                            startLocalY = event.y
                             startTime = System.currentTimeMillis()
-                            // Consommer systématiquement ACTION_DOWN pour garantir la réception de ACTION_UP
-                            super.dispatchTouchEvent(event)
-                            return true
                         }
                         MotionEvent.ACTION_UP -> {
                             val duration = System.currentTimeMillis() - startTime
                             val dx = kotlin.math.abs(event.rawX - startRawX)
                             val dy = kotlin.math.abs(event.rawY - startRawY)
-                            val isQuickTap = duration < 600 && dx < 35 * d && dy < 35 * d
+                            val isQuickTap = duration < 500 && dx < 30 * d && dy < 30 * d
 
-                            val isLeftWing = (startLocalX < centerX - deadZoneRadius) || (event.x < centerX - deadZoneRadius)
-                            val isRightWing = (startLocalX > centerX + deadZoneRadius) || (event.x > centerX + deadZoneRadius)
+                            if (isQuickTap) {
+                                val centerX = width / 2f
+                                val deadZoneRadius = 18 * d
+                                val touchX = event.x
 
-                            if (isQuickTap && (isLeftWing || isRightWing)) {
-                                container.islandViewModel.toggleExpand()
-                                return true
-                            }
-                        }
-                        MotionEvent.ACTION_CANCEL -> {
-                            val duration = System.currentTimeMillis() - startTime
-                            val dx = kotlin.math.abs(event.rawX - startRawX)
-                            val dy = kotlin.math.abs(event.rawY - startRawY)
-                            val isQuickTap = duration in 30..450 && dx < 30 * d && dy < 30 * d
+                                val isLeftWing = touchX < (centerX - deadZoneRadius)
+                                val isRightWing = touchX > (centerX + deadZoneRadius)
 
-                            val isLeftWing = (startLocalX < centerX - deadZoneRadius) || (event.x < centerX - deadZoneRadius)
-                            val isRightWing = (startLocalX > centerX + deadZoneRadius) || (event.x > centerX + deadZoneRadius)
-
-                            if (isQuickTap && (isLeftWing || isRightWing)) {
-                                container.islandViewModel.toggleExpand()
-                                return true
+                                if (isLeftWing || isRightWing) {
+                                    container.islandViewModel.toggleExpand()
+                                    return true
+                                }
                             }
                         }
                     }
@@ -202,24 +180,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         }.apply {
             setViewTreeLifecycleOwner(this@IslandOverlayService)
             setViewTreeSavedStateRegistryOwner(this@IslandOverlayService)
-            setOnApplyWindowInsetsListener { _, insets ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    val rect = insets.displayCutout?.boundingRectTop
-                    if (rect != null && !rect.isEmpty) {
-                        val realCutoutY = rect.centerY()
-                        val newInitialY = (realCutoutY - (pillHeightPx / 2)).coerceAtLeast(0)
-                        if (overlayLayoutParams.y != newInitialY) {
-                            overlayLayoutParams.y = newInitialY
-                            rootLayout?.let { v ->
-                                try {
-                                    windowManager.updateViewLayout(v, overlayLayoutParams)
-                                } catch (_: Exception) {}
-                            }
-                        }
-                    }
-                }
-                insets
-            }
         }
 
         composeView = ComposeView(this).apply {
@@ -236,8 +196,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         rootLayout = frameContainer
         windowManager.addView(rootLayout, overlayLayoutParams)
 
-        // Adapter dynamiquement la surface WindowManager pour qu'elle corresponde exactement
-        // à la taille physique de l'îlot sans jamais bloquer les zones environnantes de l'écran
         var resizeJob: Job? = null
         serviceScope.launch {
             container.islandViewModel.uiState.collect { state ->
@@ -250,25 +208,21 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
                 when {
                     state.isFaceUnlockActive -> {
-                        // Déverrouillage visage : largeur identique musique (180dp), hauteur compacte élégante 54dp
                         targetWindowWidth = (180 * density).toInt()
                         targetWindowHeight = (54 * density).toInt()
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                     }
                     shouldBeExpanded -> {
-                        // Carte de musique détaillée : commence à 46dp, hauteur 160dp -> 210dp total
                         targetWindowWidth = (320 * density).toInt()
-                        targetWindowHeight = (210 * density).toInt()
+                        targetWindowHeight = (200 * density).toInt()
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
                     }
                     state.isMusicActive -> {
-                        // Pilule compacte : 180dp x 40dp centré sur le capteur
                         targetWindowWidth = (180 * density).toInt()
                         targetWindowHeight = (40 * density).toInt()
                         targetFlags = baseFlags
                     }
                     else -> {
-                        // Inactif : fenêtre 1x1 complètement non tactile
                         targetWindowWidth = 1
                         targetWindowHeight = 1
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
@@ -283,7 +237,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                     val isGrowing = targetWindowWidth >= overlayLayoutParams.width && targetWindowHeight >= overlayLayoutParams.height
 
                     if (isGrowing) {
-                        // Agrandissement immédiat pour ne pas rogner l'animation
                         overlayLayoutParams.width = targetWindowWidth
                         overlayLayoutParams.height = targetWindowHeight
                         overlayLayoutParams.flags = targetFlags
@@ -293,7 +246,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                             } catch (_: Exception) {}
                         }
                     } else {
-                        // Si l'îlot passe en mode non tactile (ex. fermeture), libérer immédiatement l'écran
                         if ((targetFlags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) != 0) {
                             overlayLayoutParams.flags = targetFlags
                             rootLayout?.let { view ->
@@ -302,7 +254,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                                 } catch (_: Exception) {}
                             }
                         }
-                        // Réduction différée des dimensions pour laisser l'animation Compose se refermer
                         resizeJob = serviceScope.launch {
                             kotlinx.coroutines.delay(420)
                             overlayLayoutParams.width = targetWindowWidth
