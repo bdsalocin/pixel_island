@@ -81,6 +81,15 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
     }
 
     private fun getCutoutCenterY(): Int {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val cutout = windowManager.maximumWindowMetrics.windowInsets.displayCutout
+                val topRect = cutout?.boundingRectTop
+                if (topRect != null && !topRect.isEmpty) {
+                    return topRect.centerY()
+                }
+            } catch (_: Exception) {}
+        }
         val resId = resources.getIdentifier("status_bar_height", "dimen", "android")
         val statusBarHeight = if (resId > 0) {
             resources.getDimensionPixelSize(resId)
@@ -99,6 +108,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
         val initialFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
@@ -121,10 +131,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         val container = (application as PixelIslandApplication).appContainer
         val frameContainer = object : FrameLayout(this) {
-            private var startRawX = 0f
-            private var startRawY = 0f
-            private var startTime = 0L
-
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
                 if (event.action == MotionEvent.ACTION_OUTSIDE) {
                     val state = container.islandViewModel.uiState.value
@@ -138,42 +144,9 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 val d = resources.displayMetrics.density
 
                 // Si la carte est ouverte et qu'on tape dans la marge au-dessus (zone barre d'état)
-                if (state.isExpanded) {
-                    if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 44 * d) {
-                        container.islandViewModel.toggleExpand()
-                        return true
-                    }
-                }
-
-                // Si l'îlot est en mode compact musique :
-                if (!state.isExpanded && state.isMusicActive) {
-                    when (event.actionMasked) {
-                        MotionEvent.ACTION_DOWN -> {
-                            startRawX = event.rawX
-                            startRawY = event.rawY
-                            startTime = System.currentTimeMillis()
-                        }
-                        MotionEvent.ACTION_UP -> {
-                            val duration = System.currentTimeMillis() - startTime
-                            val dx = kotlin.math.abs(event.rawX - startRawX)
-                            val dy = kotlin.math.abs(event.rawY - startRawY)
-                            val isQuickTap = duration < 500 && dx < 30 * d && dy < 30 * d
-
-                            if (isQuickTap) {
-                                val centerX = width / 2f
-                                val deadZoneRadius = 18 * d
-                                val touchX = event.x
-
-                                val isLeftWing = touchX < (centerX - deadZoneRadius)
-                                val isRightWing = touchX > (centerX + deadZoneRadius)
-
-                                if (isLeftWing || isRightWing) {
-                                    container.islandViewModel.toggleExpand()
-                                    return true
-                                }
-                            }
-                        }
-                    }
+                if (state.isExpanded && event.actionMasked == MotionEvent.ACTION_UP && event.y < 40 * d) {
+                    container.islandViewModel.toggleExpand()
+                    return true
                 }
 
                 return super.dispatchTouchEvent(event)
@@ -209,13 +182,13 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
                 when {
                     state.isFaceUnlockActive -> {
-                        targetWindowWidth = (180 * density).toInt()
-                        targetWindowHeight = (54 * density).toInt()
+                        targetWindowWidth = (200 * density).toInt()
+                        targetWindowHeight = (80 * density).toInt()
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                     }
                     shouldBeExpanded -> {
                         targetWindowWidth = (320 * density).toInt()
-                        targetWindowHeight = (208 * density).toInt()
+                        targetWindowHeight = (216 * density).toInt()
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
                     }
                     state.isMusicActive -> {

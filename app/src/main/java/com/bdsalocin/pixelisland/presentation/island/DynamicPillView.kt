@@ -71,20 +71,20 @@ fun DynamicPillView(
     // Calcul dynamique des bornes haut et bas pour garantir un centrage absolu sur le poinçon
     val targetTop = when {
         state.isFaceUnlockActive -> 0.dp
-        state.isExpanded -> 44.dp // Descend sous la barre d'état (44dp sur Pixel 8 Pro) pour dégager l'heure, la date et le réseau
+        state.isExpanded -> 40.dp // Descend sous la barre d'état pour dégager l'heure, la date et le réseau
         state.isMusicActive -> 0.dp
         else -> 12.dp // S'arrête exactement au bord supérieur du poinçon lors du repli
     }
 
     val targetBottom = when {
-        state.isFaceUnlockActive -> 54.dp // Compact 54dp : même largeur 180dp que la musique pour zéro saut horizontal
-        state.isExpanded -> 204.dp // 44dp + 160dp
+        state.isFaceUnlockActive -> 76.dp // Élancé 76dp : cadenas et libellé visibles sous le poinçon
+        state.isExpanded -> 200.dp // 40dp + 160dp
         state.isMusicActive -> 40.dp
         else -> 28.dp // Se rétracte directement vers le poinçon
     }
 
     val targetWidth = when {
-        state.isFaceUnlockActive -> 180.dp // Exactement la même largeur que la musique pour transition fluide
+        state.isFaceUnlockActive -> 200.dp // Plus large (200dp) que la musique (180dp) pour une identité visuelle distincte
         state.isExpanded -> 320.dp
         state.isMusicActive -> 180.dp
         else -> 0.dp // Se rétracte à 0 en largeur au centre
@@ -149,8 +149,8 @@ fun DynamicPillView(
     // Rayon de courbure adapté pour respecter la silhouette de pilule ou rectangle arrondi
     val cornerRadius by animateDpAsState(
         targetValue = when {
-            state.isExpanded -> 38.dp
-            state.isFaceUnlockActive -> 27.dp
+            state.isExpanded -> 36.dp
+            state.isFaceUnlockActive -> 36.dp
             else -> 9999.dp
         },
         animationSpec = spring(
@@ -180,13 +180,7 @@ fun DynamicPillView(
                     .width(animatedWidth)
                     .height(currentHeight)
                     .clip(RoundedCornerShape(cornerRadius))
-                    .background(Color.Black)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        // Consomme l'interaction Compose pour valider le geste tactile au niveau système
-                    },
+                    .background(Color.Black),
                 contentAlignment = Alignment.TopCenter
             ) {
                 Box(
@@ -204,13 +198,13 @@ fun DynamicPillView(
                         label = "IslandContentTransition"
                     ) { stage ->
                         when (stage) {
-                            // Vue Déverrouillage Visage (Face Unlock compact et centré 54dp)
+                            // Vue Déverrouillage Visage (Face Unlock 76dp avec cadenas et texte sous le poinçon)
                             IslandStage.FACE_UNLOCK -> {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(54.dp)
-                                        .padding(horizontal = 14.dp),
+                                        .height(76.dp)
+                                        .padding(top = 26.dp, bottom = 6.dp, start = 12.dp, end = 12.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Center
                                 ) {
@@ -424,6 +418,7 @@ fun DynamicPillView(
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxHeight()
+                                            .background(Color.Transparent)
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
                                                 indication = null
@@ -444,6 +439,7 @@ fun DynamicPillView(
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxHeight()
+                                            .background(Color.Transparent)
                                             .clickable(
                                                 interactionSource = remember { MutableInteractionSource() },
                                                 indication = null
