@@ -225,11 +225,11 @@ class MediaRepositoryImpl(
         }
     }
 
-    override suspend fun skipNext() {
+    override suspend fun skipToNext() {
         activeController?.transportControls?.skipToNext()
     }
 
-    override suspend fun skipPrevious() {
+    override suspend fun skipToPrevious() {
         activeController?.transportControls?.skipToPrevious()
     }
 
