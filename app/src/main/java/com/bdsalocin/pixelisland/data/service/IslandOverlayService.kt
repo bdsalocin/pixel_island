@@ -10,6 +10,7 @@ import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.view.Gravity
 import android.view.WindowManager
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -70,21 +71,31 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
     }
 
     private fun setupOverlayWindow() {
+        // Calcul du centrage exact pour le poinçon physique du Google Pixel 8 Pro
+        // La caméra frontale est centrée horizontalement, à environ 34dp du haut de l'écran.
+        val density = resources.displayMetrics.density
+        val pillHeightPx = (34 * density).toInt()
+        val defaultCutoutCenterYPx = (34 * density).toInt()
+        val initialY = defaultCutoutCenterYPx - (pillHeightPx / 2)
+
+        val windowFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+
         layoutParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            windowFlags,
             PixelFormat.TRANSLUCENT
         ).apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             }
-            gravity = android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL
-            y = 10 // Décalage léger pour entourer parfaitement le poinçon
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            y = initialY
         }
 
         val container = (application as PixelIslandApplication).appContainer
@@ -95,6 +106,25 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 DynamicPillView(
                     viewModel = container.islandViewModel
                 )
+            }
+
+            // Réajustement dynamique au pixel près dès que les métriques système du Pixel 8 Pro sont fournies
+            setOnApplyWindowInsetsListener { _, insets ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    val cutout = insets.displayCutout
+                    val topRect = cutout?.boundingRectTop
+                    if (topRect != null && !topRect.isEmpty) {
+                        val realCenterY = topRect.centerY()
+                        val computedY = realCenterY - (pillHeightPx / 2)
+                        if (layoutParams.y != computedY) {
+                            layoutParams.y = computedY
+                            try {
+                                windowManager.updateViewLayout(this, layoutParams)
+                            } catch (_: Exception) {}
+                        }
+                    }
+                }
+                insets
             }
         }
 
@@ -107,13 +137,14 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         val container = (application as PixelIslandApplication).appContainer
         container.calculateCutoutAnchorUseCase.onConfigurationChanged(rotation)
 
-        // Réajustement immédiat de la gravité de la fenêtre pour suivre le poinçon physique
         layoutParams.gravity = when (rotation) {
-            1 -> android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
-            3 -> android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL
-            else -> android.view.Gravity.TOP or android.view.Gravity.CENTER_HORIZONTAL
+            1 -> Gravity.START or Gravity.CENTER_VERTICAL
+            3 -> Gravity.END or Gravity.CENTER_VERTICAL
+            else -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
         }
-        windowManager.updateViewLayout(composeView, layoutParams)
+        try {
+            windowManager.updateViewLayout(composeView, layoutParams)
+        } catch (_: Exception) {}
     }
 
     override fun onDestroy() {

@@ -3,7 +3,9 @@ package com.bdsalocin.pixelisland.presentation.island
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -28,7 +30,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bdsalocin.pixelisland.presentation.island.components.EqualizerBars
@@ -41,20 +46,22 @@ fun DynamicPillView(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    // Dimensions et rayons de courbure spécifiquement calqués sur le Pixel 8 Pro
-    // Largeur compacte limitée à 165dp pour préserver l'espace de l'heure et des icônes 5G et batterie
+    // Vérifie si une action requiert l'affichage de l'îlot
+    val isVisible = state.isMusicActive || state.isFaceUnlockActive || state.isExpanded
+
+    // Dimensions dynamiques : au repos, la bulle est à 0dp (masquée derrière le poinçon)
     val targetWidth = when {
         state.isFaceUnlockActive -> 56.dp
         state.isExpanded -> 300.dp
         state.isMusicActive -> 165.dp
-        else -> 30.dp // Diamètre repos entourant le capteur photo
+        else -> 0.dp // Complètement invisible et caché au repos
     }
 
     val targetHeight = when {
         state.isFaceUnlockActive -> 56.dp
         state.isExpanded -> 146.dp
         state.isMusicActive -> 34.dp
-        else -> 30.dp
+        else -> 0.dp // Complètement invisible et caché au repos
     }
 
     val animatedWidth by animateDpAsState(
@@ -75,6 +82,12 @@ fun DynamicPillView(
         label = "PillHeightAnimation"
     )
 
+    val animatedAlpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(durationMillis = 250),
+        label = "PillAlphaAnimation"
+    )
+
     // Rayon de courbure de 38dp en mode étendu pour respecter l'arrondi d'écran du Pixel 8 Pro
     val cornerRadius by animateDpAsState(
         targetValue = if (state.isExpanded) 38.dp else 9999.dp,
@@ -85,112 +98,146 @@ fun DynamicPillView(
         label = "PillCornerAnimation"
     )
 
-    // Conteneur noir OLED absolu (#000000)
-    Box(
-        modifier = modifier
-            .width(animatedWidth)
-            .height(animatedHeight)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(androidx.compose.ui.graphics.Color.Black)
-            .clickable { viewModel.toggleExpand() },
-        contentAlignment = Alignment.Center
-    ) {
-        when {
-            // Vue Déverrouillage Visage (Face Unlock)
-            state.isFaceUnlockActive -> {
-                FaceUnlockScanner(status = state.biometricStatus)
-            }
+    // Ne rien afficher si inactif
+    if (animatedWidth > 2.dp && animatedHeight > 2.dp) {
+        Box(
+            modifier = modifier
+                .width(animatedWidth)
+                .height(animatedHeight)
+                .graphicsLayer { alpha = animatedAlpha }
+                .clip(RoundedCornerShape(cornerRadius))
+                .background(Color.Black)
+                .clickable { viewModel.toggleExpand() },
+            contentAlignment = Alignment.Center
+        ) {
+            when {
+                // Vue Déverrouillage Visage (Face Unlock)
+                state.isFaceUnlockActive -> {
+                    FaceUnlockScanner(status = state.biometricStatus)
+                }
 
-            // Vue Musique Étendue
-            state.isExpanded && state.mediaTrack != null -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
+                // Vue Musique Étendue
+                state.isExpanded && state.mediaTrack != null -> {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val albumArt = state.mediaTrack?.albumArt
+                                if (albumArt != null) {
+                                    Image(
+                                        bitmap = albumArt.asImageBitmap(),
+                                        contentDescription = "Pochette d'album",
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(42.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(
+                                                Brush.linearGradient(
+                                                    listOf(Color(0xFF6366F1), Color(0xFFEC4899))
+                                                )
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text("♪", color = Color.White, fontSize = 20.sp)
+                                    }
+                                }
+
+                                Column {
+                                    Text(
+                                        text = state.mediaTrack?.title ?: "",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = state.mediaTrack?.artist ?: "",
+                                        color = Color.Gray,
+                                        fontSize = 11.sp,
+                                        maxLines = 1
+                                    )
+                                }
+                            }
+                            EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
+                        }
+
+                        // Bouton Lecture / Pause
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .clickable { viewModel.onPlayPauseClicked() }
+                                .padding(top = 8.dp)
+                        ) {
+                            Text(
+                                text = if (state.mediaTrack?.isPlaying == true) "PAUSE" else "LECTURE",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+
+                // Vue Musique Compacte (Extension symétrique de part et d'autre du capteur)
+                state.isMusicActive && state.mediaTrack != null -> {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        // Côté gauche : Onde sonore vibrante
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn(),
+                            exit = fadeOut()
                         ) {
-                            state.mediaTrack?.albumArt?.let { bitmap ->
-                                Image(
-                                    bitmap = bitmap.asImageBitmap(),
-                                    contentDescription = "Pochette d'album",
-                                    modifier = Modifier
-                                        .size(42.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = state.mediaTrack?.title ?: "",
-                                    color = androidx.compose.ui.graphics.Color.White,
-                                    fontSize = 13.sp,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = state.mediaTrack?.artist ?: "",
-                                    color = androidx.compose.ui.graphics.Color.Gray,
-                                    fontSize = 11.sp,
-                                    maxLines = 1
-                                )
+                            EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
+                        }
+
+                        // Centre : Espace réservé pour le poinçon de la caméra frontale
+                        Spacer(modifier = Modifier.width(28.dp))
+
+                        // Côté droit : Miniature de l'album ou icône de secours
+                        val miniature = state.mediaTrack?.albumArt
+                        if (miniature != null) {
+                            Image(
+                                bitmap = miniature.asImageBitmap(),
+                                contentDescription = "Pochette miniature",
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(Color(0xFF6366F1), Color(0xFFEC4899))
+                                        )
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("♪", color = Color.White, fontSize = 11.sp)
                             }
                         }
-                        EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
-                    }
-
-                    // Bouton Lecture / Pause
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .clickable { viewModel.onPlayPauseClicked() }
-                            .padding(top = 8.dp)
-                    ) {
-                        Text(
-                            text = if (state.mediaTrack?.isPlaying == true) "PAUSE" else "LECTURE",
-                            color = androidx.compose.ui.graphics.Color.White,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-            }
-
-            // Vue Musique Compacte (Extension symétrique de part et d'autre du capteur)
-            state.isMusicActive && state.mediaTrack != null -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Côté gauche : Onde sonore vibrante
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(),
-                        exit = fadeOut()
-                    ) {
-                        EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
-                    }
-
-                    // Centre : Espace réservé pour le poinçon de la caméra frontale
-                    Spacer(modifier = Modifier.width(28.dp))
-
-                    // Côté droit : Miniature de l'album
-                    state.mediaTrack?.albumArt?.let { bitmap ->
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Pochette miniature",
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                        )
                     }
                 }
             }
