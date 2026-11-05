@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.MotionEvent
+import android.view.Surface
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.compose.ui.platform.ComposeView
@@ -138,7 +139,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
                 // Si la carte est ouverte et qu'on tape dans la marge au-dessus (zone barre d'état)
                 if (state.isExpanded) {
-                    if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 38 * d) {
+                    if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 44 * d) {
                         container.islandViewModel.toggleExpand()
                         return true
                     }
@@ -214,7 +215,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                     }
                     shouldBeExpanded -> {
                         targetWindowWidth = (320 * density).toInt()
-                        targetWindowHeight = (200 * density).toInt()
+                        targetWindowHeight = (208 * density).toInt()
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
                     }
                     state.isMusicActive -> {
@@ -273,7 +274,12 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val rotation = windowManager.defaultDisplay.rotation
+        val rotation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            display?.rotation ?: Surface.ROTATION_0
+        } else {
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.rotation
+        }
         val container = (application as PixelIslandApplication).appContainer
         container.calculateCutoutAnchorUseCase.onConfigurationChanged(rotation)
 

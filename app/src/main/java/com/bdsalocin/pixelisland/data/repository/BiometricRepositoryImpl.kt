@@ -70,6 +70,8 @@ class BiometricRepositoryImpl(
         }
 
         awaitClose {
+            scanTimeoutJob?.cancel()
+            dismissJob?.cancel()
             try {
                 context.unregisterReceiver(receiver)
             } catch (_: Exception) {}

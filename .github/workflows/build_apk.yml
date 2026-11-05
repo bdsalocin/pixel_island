@@ -59,13 +59,19 @@ jobs:
           name: pixel_island_debug_apk
           path: app/build/outputs/apk/debug/pixel_island.apk
 
+      - name: Extract Version
+        id: get_version
+        run: |
+          VERSION=$(grep 'versionName =' app/build.gradle.kts | head -n 1 | cut -d '"' -f 2)
+          echo "version=v$VERSION" >> $GITHUB_OUTPUT
+
       - name: Publish GitHub Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.8
-          name: Pixel Island v1.4.8 APK
-          body: Dynamic Island stabilite parfaite, suppression boucle insets, ouverture tactile ailes et carte sous statut
+          tag_name: ${{ steps.get_version.outputs.version }}
+          name: Pixel Island ${{ steps.get_version.outputs.version }} APK
+          body: Pixel Island release ${{ steps.get_version.outputs.version }} avec securisation des commandes, interpolation de la progression et compatibilite Android 14
           files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

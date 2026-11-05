@@ -10,6 +10,7 @@ import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import com.bdsalocin.pixelisland.data.service.MusicNotificationListenerService
 import com.bdsalocin.pixelisland.domain.model.MediaTrack
 import com.bdsalocin.pixelisland.domain.repository.MediaRepository
@@ -224,7 +225,15 @@ class MediaRepositoryImpl(
             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
 
         val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
-        val position = playbackState.position
+        val rawPosition = playbackState.position
+        val position = if (isPlaying && playbackState.lastPositionUpdateTime > 0) {
+            val elapsed = SystemClock.elapsedRealtime() - playbackState.lastPositionUpdateTime
+            val speed = if (playbackState.playbackSpeed > 0f) playbackState.playbackSpeed else 1f
+            val calculated = rawPosition + (elapsed * speed).toLong()
+            if (duration > 0L) calculated.coerceIn(0L, duration) else calculated.coerceAtLeast(0L)
+        } else {
+            rawPosition
+        }
 
         return MediaTrack(
             title = title,
@@ -238,20 +247,26 @@ class MediaRepositoryImpl(
     }
 
     override suspend fun playPause() {
-        val playbackState = activeController?.playbackState?.state
-        if (playbackState == PlaybackState.STATE_PLAYING) {
-            activeController?.transportControls?.pause()
-        } else {
-            activeController?.transportControls?.play()
-        }
+        try {
+            val playbackState = activeController?.playbackState?.state
+            if (playbackState == PlaybackState.STATE_PLAYING) {
+                activeController?.transportControls?.pause()
+            } else {
+                activeController?.transportControls?.play()
+            }
+        } catch (_: Exception) {}
     }
 
     override suspend fun skipToNext() {
-        activeController?.transportControls?.skipToNext()
+        try {
+            activeController?.transportControls?.skipToNext()
+        } catch (_: Exception) {}
     }
 
     override suspend fun skipToPrevious() {
-        activeController?.transportControls?.skipToPrevious()
+        try {
+            activeController?.transportControls?.skipToPrevious()
+        } catch (_: Exception) {}
     }
 
     override suspend fun openMusicApp() {
@@ -259,8 +274,10 @@ class MediaRepositoryImpl(
             val launchIntent = context.packageManager.getLaunchIntentForPackage(controller.packageName)
             launchIntent?.let {
                 it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(it)
-                return
+                try {
+                    context.startActivity(it)
+                    return
+                } catch (_: Exception) {}
             }
         }
         val defaultIntent = Intent(Intent.ACTION_MAIN).apply {
