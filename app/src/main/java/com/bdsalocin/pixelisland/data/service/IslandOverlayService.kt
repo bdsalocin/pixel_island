@@ -122,7 +122,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         }
 
         val container = (application as PixelIslandApplication).appContainer
-        composeView = object : ComposeView(this) {
+        val islandView: ComposeView = object : ComposeView(this) {
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
                 if (event.action == MotionEvent.ACTION_OUTSIDE) {
                     val state = container.islandViewModel.uiState.value
@@ -133,15 +133,15 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 }
                 return super.dispatchTouchEvent(event)
             }
-        }.apply {
-            setViewTreeLifecycleOwner(this@IslandOverlayService)
-            setViewTreeSavedStateRegistryOwner(this@IslandOverlayService)
-            setContent {
-                DynamicPillView(
-                    viewModel = container.islandViewModel
-                )
-            }
         }
+        islandView.setViewTreeLifecycleOwner(this)
+        islandView.setViewTreeSavedStateRegistryOwner(this)
+        islandView.setContent {
+            DynamicPillView(
+                viewModel = container.islandViewModel
+            )
+        }
+        composeView = islandView
 
         windowManager.addView(composeView, layoutParams)
 
