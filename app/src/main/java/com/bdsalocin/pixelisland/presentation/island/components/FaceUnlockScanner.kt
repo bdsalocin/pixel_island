@@ -12,18 +12,14 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -33,9 +29,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.bdsalocin.pixelisland.domain.model.BiometricStatus
 
 @Composable
@@ -54,40 +48,24 @@ fun FaceUnlockScanner(
 
     val transition = rememberInfiniteTransition(label = "FaceScanPulse")
     val pulseScale by transition.animateFloat(
-        initialValue = 0.95f,
-        targetValue = 1.05f,
+        initialValue = 0.94f,
+        targetValue = 1.06f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 650, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "Pulse"
     )
 
-    Row(
+    Box(
         modifier = modifier,
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
+        contentAlignment = Alignment.Center
     ) {
-        // Cadenas animé
+        // Cadenas animé seul (sans texte)
         AnimatedPadlock(
             isUnlocked = isUnlocked,
             color = accentColor,
             modifier = Modifier.scale(if (status == BiometricStatus.SCANNING) pulseScale else 1f)
-        )
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        // Texte explicatif affiché sous le capteur
-        Text(
-            text = when (status) {
-                BiometricStatus.SUCCESS -> "Déverrouillé"
-                BiometricStatus.SCANNING -> "Pixel Face"
-                BiometricStatus.FAILED -> "Non reconnu"
-                BiometricStatus.IDLE -> "Déverrouillé"
-            },
-            color = if (isUnlocked) Color(0xFF34D399) else Color.White,
-            fontSize = 13.sp,
-            fontWeight = if (isUnlocked) FontWeight.Bold else FontWeight.Medium
         )
     }
 }

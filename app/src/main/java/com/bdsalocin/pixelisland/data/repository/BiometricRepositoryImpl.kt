@@ -42,9 +42,9 @@ class BiometricRepositoryImpl(
                         scanTimeoutJob?.cancel()
                         dismissJob?.cancel()
                         trySend(BiometricStatus.SUCCESS)
-                        // Transition douce : affichage du déverrouillage réussi (550ms) avant le passage à la musique ou la rétraction
+                        // Transition douce : affichage du cadenas ouvert (350ms) puis passage fluide à la musique
                         dismissJob = scope.launch {
-                            delay(550)
+                            delay(350)
                             trySend(BiometricStatus.IDLE)
                         }
                     }

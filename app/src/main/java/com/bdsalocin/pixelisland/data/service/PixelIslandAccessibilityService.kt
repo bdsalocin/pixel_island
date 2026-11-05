@@ -205,7 +205,12 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
             }
         }
 
-        frameContainer.addView(composeView)
+        val composeLayoutParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        )
+        frameContainer.addView(composeView, composeLayoutParams)
         rootLayout = frameContainer
         windowManager.addView(rootLayout, overlayLayoutParams)
 
@@ -251,8 +256,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
         when {
             state.isFaceUnlockActive -> {
-                targetWindowWidth = (200 * density).toInt()
-                targetWindowHeight = (80 * density).toInt()
+                targetWindowWidth = (76 * density).toInt()
+                targetWindowHeight = (62 * density).toInt()
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
             shouldBeExpanded -> {

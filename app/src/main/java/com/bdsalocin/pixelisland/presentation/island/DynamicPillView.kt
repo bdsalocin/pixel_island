@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -76,14 +75,14 @@ fun DynamicPillView(
     }
 
     val targetBottom = when {
-        state.isFaceUnlockActive -> 76.dp // Élancé 76dp : cadenas et libellé bien visibles sous le poinçon
+        state.isFaceUnlockActive -> 58.dp // Cadenas élégant seul sous le poinçon (sans texte)
         state.isExpanded -> 180.dp       // Carte agrandie ergonomique et fluide
         state.isMusicActive -> 40.dp     // Hauteur compacte 40dp centrée sur le poinçon
         else -> 28.dp                    // Repli vers le centre du poinçon (y=20dp)
     }
 
     val targetWidth = when {
-        state.isFaceUnlockActive -> 200.dp // 200dp pour le déverrouillage
+        state.isFaceUnlockActive -> 76.dp  // Largeur épurée 76dp pour le cadenas seul
         state.isExpanded -> 320.dp         // 320dp pour la carte multimédia
         state.isMusicActive -> 180.dp     // 180dp pour la pilule musique compacte
         else -> 0.dp                      // Rétraction à 0dp en largeur
@@ -123,11 +122,11 @@ fun DynamicPillView(
 
     val currentHeight = (animatedBottom - animatedTop).coerceAtLeast(0.dp)
 
-    // Rayon de courbure adapté : pilule parfaite en compact, rectangle arrondi doux en étendu et Face ID
+    // Rayon de courbure adapté : pilule parfaite en compact, galet arrondi pour le cadenas Face ID
     val cornerRadius by animateDpAsState(
         targetValue = when {
             state.isExpanded -> 36.dp
-            state.isFaceUnlockActive -> 36.dp
+            state.isFaceUnlockActive -> 29.dp // Galet parfaitement arrondi (58dp / 2 = 29dp)
             else -> 9999.dp
         },
         animationSpec = spring(
@@ -145,7 +144,7 @@ fun DynamicPillView(
     )
 
     Box(
-        modifier = Modifier.wrapContentSize(),
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.TopCenter
     ) {
         if (animatedWidth > 0.5.dp && currentHeight > 0.5.dp) {
@@ -192,19 +191,17 @@ fun DynamicPillView(
                         label = "IslandContentTransition"
                     ) { stage ->
                         when (stage) {
-                            // Vue Déverrouillage Visage (Face Unlock 76dp avec cadenas et texte sous le poinçon)
+                            // Vue Déverrouillage Visage (Cadenas seul épuré centré sous le poinçon)
                             IslandStage.FACE_UNLOCK -> {
-                                Column(
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(76.dp)
-                                        .padding(top = 26.dp, bottom = 6.dp, start = 12.dp, end = 12.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
+                                        .height(58.dp)
+                                        .padding(top = 26.dp, bottom = 6.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     FaceUnlockScanner(
-                                        status = state.biometricStatus,
-                                        modifier = Modifier.fillMaxWidth()
+                                        status = state.biometricStatus
                                     )
                                 }
                             }
@@ -397,7 +394,7 @@ fun DynamicPillView(
                                 }
                             }
 
-                            // Vue Musique Compacte (Hauteur fixe 40dp centrée sur le poinçon, ailes tactiles gauche et droite)
+                            // Vue Musique Compacte (Pochette d'album à GAUCHE, barres de son à DROITE)
                             IslandStage.COMPACT_MUSIC -> {
                                 Row(
                                     modifier = Modifier
@@ -407,27 +404,7 @@ fun DynamicPillView(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Côté gauche : Aile de l'égaliseur (toucher direct pour ouvrir la carte)
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .fillMaxHeight()
-                                            .background(Color.Transparent)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                viewModel.toggleExpand()
-                                            },
-                                        contentAlignment = Alignment.CenterStart
-                                    ) {
-                                        EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
-                                    }
-
-                                    // Centre : Espace neutre réservé pour le poinçon de la caméra frontale
-                                    Spacer(modifier = Modifier.width(36.dp))
-
-                                    // Côté droit : Aile de la pochette d'album (toucher direct pour ouvrir la carte)
+                                    // Côté gauche : Aile de la pochette d'album
                                     val miniature = state.mediaTrack?.albumArt
                                     Box(
                                         modifier = Modifier
@@ -440,7 +417,7 @@ fun DynamicPillView(
                                             ) {
                                                 viewModel.toggleExpand()
                                             },
-                                        contentAlignment = Alignment.CenterEnd
+                                        contentAlignment = Alignment.CenterStart
                                     ) {
                                         if (miniature != null) {
                                             Image(
@@ -465,6 +442,26 @@ fun DynamicPillView(
                                                 Text("♪", color = Color.White, fontSize = 12.sp)
                                             }
                                         }
+                                    }
+
+                                    // Centre : Espace neutre réservé pour le poinçon de la caméra frontale
+                                    Spacer(modifier = Modifier.width(36.dp))
+
+                                    // Côté droit : Aile des barres de son (égaliseur)
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                            .background(Color.Transparent)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                viewModel.toggleExpand()
+                                            },
+                                        contentAlignment = Alignment.CenterEnd
+                                    ) {
+                                        EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
                                     }
                                 }
                             }
