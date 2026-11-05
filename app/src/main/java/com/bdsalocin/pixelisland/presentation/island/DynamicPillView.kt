@@ -177,6 +177,8 @@ fun DynamicPillView(
         (targetWidth - (dragFraction * (384.dp - 180.dp))).coerceIn(180.dp, 384.dp)
     } else {
         animatedWidth
+    }
+
     // Rayon de courbure adapté : pilule parfaite en compact, squircle élégant pour Face ID et grande carte
     val cornerRadius by animateDpAsState(
         targetValue = when {
