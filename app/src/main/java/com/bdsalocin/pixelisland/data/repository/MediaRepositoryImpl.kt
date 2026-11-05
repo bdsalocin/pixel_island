@@ -158,7 +158,8 @@ class MediaRepositoryImpl(
 
         val rawTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
             ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-            ?: metadata?.getString(MediaMetadata.METADATA_KEY_DESCRIPTION)
+            ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_DESCRIPTION)
+            ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE)
         
         val title = if (!rawTitle.isNullOrBlank()) rawTitle else appName
 
