@@ -70,14 +70,14 @@ fun DynamicPillView(
     // Calcul dynamique des bornes haut et bas pour garantir un centrage absolu sur le poinçon
     val targetTop = when {
         state.isFaceUnlockActive -> 0.dp
-        state.isExpanded -> 0.dp
+        state.isExpanded -> 20.dp
         state.isMusicActive -> 0.dp
         else -> 12.dp // S'arrête exactement au bord supérieur du poinçon lors du repli
     }
 
     val targetBottom = when {
         state.isFaceUnlockActive -> 74.dp
-        state.isExpanded -> 156.dp
+        state.isExpanded -> 180.dp
         state.isMusicActive -> 40.dp
         else -> 28.dp // Se rétracte directement vers le poinçon
     }
@@ -179,14 +179,8 @@ fun DynamicPillView(
                     .width(animatedWidth)
                     .height(currentHeight)
                     .clip(RoundedCornerShape(cornerRadius))
-                    .background(Color.Black)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        viewModel.toggleExpand()
-                    },
-                contentAlignment = Alignment.Center
+                    .background(Color.Black),
+                contentAlignment = Alignment.TopCenter
             ) {
                 Box(
                     modifier = Modifier
@@ -195,6 +189,7 @@ fun DynamicPillView(
                 ) {
                     AnimatedContent(
                         targetState = currentStage,
+                        contentAlignment = Alignment.TopCenter,
                         transitionSpec = {
                             fadeIn(animationSpec = tween(320, delayMillis = 60, easing = FastOutSlowInEasing)) togetherWith
                             fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
@@ -206,7 +201,8 @@ fun DynamicPillView(
                             IslandStage.FACE_UNLOCK -> {
                                 Column(
                                     modifier = Modifier
-                                        .fillMaxSize()
+                                        .fillMaxWidth()
+                                        .height(74.dp)
                                         .padding(horizontal = 14.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.Bottom
@@ -225,7 +221,8 @@ fun DynamicPillView(
                                 val track = state.mediaTrack
                                 Column(
                                     modifier = Modifier
-                                        .fillMaxSize()
+                                        .fillMaxWidth()
+                                        .height(160.dp)
                                         .padding(16.dp),
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
@@ -289,7 +286,16 @@ fun DynamicPillView(
                                             }
                                         }
 
-                                        EqualizerBars(isPlaying = track?.isPlaying == true)
+                                        Box(
+                                            modifier = Modifier.clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                viewModel.toggleExpand()
+                                            }
+                                        ) {
+                                            EqualizerBars(isPlaying = track?.isPlaying == true)
+                                        }
                                     }
 
                                     // Barre de progression musicale
@@ -398,45 +404,48 @@ fun DynamicPillView(
                                 }
                             }
 
-                            // Vue Musique Compacte (Hauteur 40dp confortable, symétrie autour du capteur)
+                            // Vue Musique Compacte (Hauteur fixe 40dp centrée sur le poinçon, ailes tactiles gauche et droite)
                             IslandStage.COMPACT_MUSIC -> {
                                 Row(
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            viewModel.toggleExpand()
-                                        }
+                                        .fillMaxWidth()
+                                        .height(40.dp)
                                         .padding(horizontal = 12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    // Côté gauche : Onde sonore vibrante (clic direct pour afficher la carte)
+                                    // Côté gauche : Aile de l'égaliseur (toucher direct pour ouvrir la carte)
                                     Box(
-                                        modifier = Modifier.clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            viewModel.toggleExpand()
-                                        }
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                viewModel.toggleExpand()
+                                            },
+                                        contentAlignment = Alignment.CenterStart
                                     ) {
                                         EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
                                     }
 
-                                    // Centre : Espace réservé pour le poinçon de la caméra frontale
+                                    // Centre : Espace neutre réservé pour le poinçon de la caméra frontale
                                     Spacer(modifier = Modifier.width(36.dp))
 
-                                    // Côté droit : Miniature de l'album ou icône musicale (clic direct pour afficher la carte)
+                                    // Côté droit : Aile de la pochette d'album (toucher direct pour ouvrir la carte)
                                     val miniature = state.mediaTrack?.albumArt
                                     Box(
-                                        modifier = Modifier.clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
-                                            viewModel.toggleExpand()
-                                        }
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                viewModel.toggleExpand()
+                                            },
+                                        contentAlignment = Alignment.CenterEnd
                                     ) {
                                         if (miniature != null) {
                                             Image(

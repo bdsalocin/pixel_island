@@ -125,8 +125,10 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         val container = (application as PixelIslandApplication).appContainer
         val frameContainer = object : FrameLayout(this) {
-            private var startX = 0f
-            private var startY = 0f
+            private var startRawX = 0f
+            private var startRawY = 0f
+            private var startLocalX = 0f
+            private var startLocalY = 0f
             private var startTime = 0L
 
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -139,27 +141,56 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 }
 
                 val state = container.islandViewModel.uiState.value
+                val d = resources.displayMetrics.density
+
+                // Si la carte est ouverte et qu'on tape dans la marge au-dessus de la carte
+                // (zone transparente de 20dp sous la barre d'état), on referme la carte en douceur
+                if (state.isExpanded) {
+                    if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 20 * d) {
+                        container.islandViewModel.toggleExpand()
+                        return true
+                    }
+                }
+
+                // Si l'îlot est en mode compact musique :
+                // Le toucher d'expansion doit se faire UNIQUEMENT sur l'aile gauche (égaliseur)
+                // ou sur l'aile droite (pochette d'album), et JAMAIS au centre sur le poinçon
                 if (!state.isExpanded && state.isMusicActive) {
+                    val centerX = width / 2f
+                    val deadZoneRadius = 24 * d // Zone centrale de 48dp exclue autour du capteur
+
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
-                            startX = event.rawX
-                            startY = event.rawY
+                            startRawX = event.rawX
+                            startRawY = event.rawY
+                            startLocalX = event.x
+                            startLocalY = event.y
                             startTime = System.currentTimeMillis()
                         }
                         MotionEvent.ACTION_UP -> {
                             val duration = System.currentTimeMillis() - startTime
-                            val dx = kotlin.math.abs(event.rawX - startX)
-                            val dy = kotlin.math.abs(event.rawY - startY)
-                            if (duration < 500 && dx < 40 * density && dy < 40 * density) {
+                            val dx = kotlin.math.abs(event.rawX - startRawX)
+                            val dy = kotlin.math.abs(event.rawY - startRawY)
+                            val isQuickTap = duration < 500 && dx < 30 * d && dy < 30 * d
+
+                            val isLeftWing = (startLocalX < centerX - deadZoneRadius) && (event.x < centerX - deadZoneRadius)
+                            val isRightWing = (startLocalX > centerX + deadZoneRadius) && (event.x > centerX + deadZoneRadius)
+
+                            if (isQuickTap && (isLeftWing || isRightWing)) {
                                 container.islandViewModel.toggleExpand()
                                 return true
                             }
                         }
                         MotionEvent.ACTION_CANCEL -> {
                             val duration = System.currentTimeMillis() - startTime
-                            val dx = kotlin.math.abs(event.rawX - startX)
-                            val dy = kotlin.math.abs(event.rawY - startY)
-                            if (duration in 30..400 && dx < 25 * density && dy < 25 * density) {
+                            val dx = kotlin.math.abs(event.rawX - startRawX)
+                            val dy = kotlin.math.abs(event.rawY - startRawY)
+                            val isQuickTap = duration in 30..400 && dx < 25 * d && dy < 25 * d
+
+                            val isLeftWing = (startLocalX < centerX - deadZoneRadius) && (event.x < centerX - deadZoneRadius)
+                            val isRightWing = (startLocalX > centerX + deadZoneRadius) && (event.x > centerX + deadZoneRadius)
+
+                            if (isQuickTap && (isLeftWing || isRightWing)) {
                                 container.islandViewModel.toggleExpand()
                                 return true
                             }
@@ -208,15 +239,15 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                     }
                     shouldBeExpanded -> {
-                        // Carte de musique détaillée : dimensionnée au plus juste
+                        // Carte de musique détaillée : dimensionnée pour accueillir la carte descendue
                         targetWindowWidth = (310 * density).toInt()
-                        targetWindowHeight = (156 * density).toInt()
+                        targetWindowHeight = (184 * density).toInt()
                         targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
                     }
                     state.isMusicActive -> {
-                        // Pilule compacte : zone réceptive confortable couvrant la pilule
-                        targetWindowWidth = (190 * density).toInt()
-                        targetWindowHeight = (48 * density).toInt()
+                        // Pilule compacte : hauteur exacte de 40dp pour un alignement parfait sans débordement
+                        targetWindowWidth = (180 * density).toInt()
+                        targetWindowHeight = (40 * density).toInt()
                         targetFlags = baseFlags
                     }
                     else -> {

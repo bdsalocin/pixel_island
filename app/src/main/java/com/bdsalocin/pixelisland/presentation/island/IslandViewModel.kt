@@ -31,6 +31,7 @@ class IslandViewModel(
 
     private var lastWasPlaying = false
     private var pauseDismissJob: Job? = null
+    private var lastToggleTime = 0L
 
     init {
         observeMedia()
@@ -97,6 +98,9 @@ class IslandViewModel(
     }
 
     fun toggleExpand() {
+        val now = System.currentTimeMillis()
+        if (now - lastToggleTime < 250) return
+        lastToggleTime = now
         if (_uiState.value.mediaTrack != null) {
             _uiState.update { it.copy(isExpanded = !it.isExpanded) }
         }
