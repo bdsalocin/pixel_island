@@ -116,10 +116,11 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                     if (topRect != null && !topRect.isEmpty) {
                         val realCenterY = topRect.centerY()
                         val computedY = realCenterY - (pillHeightPx / 2)
-                        if (layoutParams.y != computedY) {
-                            layoutParams.y = computedY
+                        val params = this@IslandOverlayService.layoutParams
+                        if (params.y != computedY) {
+                            params.y = computedY
                             try {
-                                windowManager.updateViewLayout(this, layoutParams)
+                                windowManager.updateViewLayout(this, params)
                             } catch (_: Exception) {}
                         }
                     }
