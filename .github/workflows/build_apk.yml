@@ -5,6 +5,9 @@ on:
     branches: [ main, develop ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,3 +34,14 @@ jobs:
         with:
           name: pixel_island_debug_apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: Pixel Island v1.0.0 APK
+          body: Fichier APK compilé pour Google Pixel 8 Pro
+          files: app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
