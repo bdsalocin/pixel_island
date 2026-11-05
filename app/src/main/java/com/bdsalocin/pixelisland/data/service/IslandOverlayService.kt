@@ -11,6 +11,7 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
@@ -95,16 +96,20 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         val initialY = (cutoutCenterY - (pillHeightPx / 2)).coerceAtLeast(0)
 
-        val windowFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+        val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
+        // Au repos l'îlot est inactif, le drapeau FLAG_NOT_TOUCHABLE et des dimensions 1x1 garantissent
+        // que pas un seul pixel de l'écran n'est bloqué aux clics
+        val initialFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+
         layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            1,
+            1,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            windowFlags,
+            initialFlags,
             PixelFormat.TRANSLUCENT
         ).apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -117,7 +122,18 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         }
 
         val container = (application as PixelIslandApplication).appContainer
-        composeView = ComposeView(this).apply {
+        composeView = object : ComposeView(this) {
+            override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                if (event.action == MotionEvent.ACTION_OUTSIDE) {
+                    val state = container.islandViewModel.uiState.value
+                    if (state.isExpanded) {
+                        container.islandViewModel.toggleExpand()
+                    }
+                    return false
+                }
+                return super.dispatchTouchEvent(event)
+            }
+        }.apply {
             setViewTreeLifecycleOwner(this@IslandOverlayService)
             setViewTreeSavedStateRegistryOwner(this@IslandOverlayService)
             setContent {
@@ -129,50 +145,78 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         windowManager.addView(composeView, layoutParams)
 
-        // Adapter dynamiquement la surface WindowManager lors de l'expansion pour afficher
-        // l'intégralité de la carte détaillée comme sur iPhone sans aucun rognage
+        // Adapter dynamiquement la surface WindowManager pour qu'elle corresponde exactement
+        // à la taille physique de l'îlot sans jamais bloquer les zones environnantes de l'écran
         var resizeJob: Job? = null
         serviceScope.launch {
             container.islandViewModel.uiState.collect { state ->
                 val density = resources.displayMetrics.density
                 val shouldBeExpanded = state.isExpanded
-                val targetWindowWidth = if (shouldBeExpanded) {
-                    (340 * density).toInt()
-                } else if (state.isFaceUnlockActive) {
-                    (210 * density).toInt()
-                } else if (state.isMusicActive) {
-                    (200 * density).toInt()
-                } else {
-                    WindowManager.LayoutParams.WRAP_CONTENT
+
+                val targetWindowWidth: Int
+                val targetWindowHeight: Int
+                val targetFlags: Int
+
+                when {
+                    shouldBeExpanded -> {
+                        // Carte de musique détaillée : dimensionnée au plus juste
+                        targetWindowWidth = (310 * density).toInt()
+                        targetWindowHeight = (156 * density).toInt()
+                        targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+                    }
+                    state.isMusicActive -> {
+                        // Pilule compacte : dimensionnée exactement à la taille de la capsule
+                        targetWindowWidth = (180 * density).toInt()
+                        targetWindowHeight = (40 * density).toInt()
+                        targetFlags = baseFlags
+                    }
+                    state.isFaceUnlockActive -> {
+                        // Déverrouillage visage : visuel uniquement, écran entièrement traversant pour les clics
+                        targetWindowWidth = (190 * density).toInt()
+                        targetWindowHeight = (74 * density).toInt()
+                        targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    }
+                    else -> {
+                        // Inactif : fenêtre 1x1 complètement non tactile
+                        targetWindowWidth = 1
+                        targetWindowHeight = 1
+                        targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                    }
                 }
 
-                val targetWindowHeight = if (shouldBeExpanded) {
-                    (190 * density).toInt()
-                } else if (state.isFaceUnlockActive) {
-                    (90 * density).toInt()
-                } else if (state.isMusicActive) {
-                    (50 * density).toInt()
-                } else {
-                    WindowManager.LayoutParams.WRAP_CONTENT
-                }
+                val sizeChanged = layoutParams.width != targetWindowWidth || layoutParams.height != targetWindowHeight
+                val flagsChanged = layoutParams.flags != targetFlags
 
-                if (layoutParams.width != targetWindowWidth || layoutParams.height != targetWindowHeight) {
+                if (sizeChanged || flagsChanged) {
                     resizeJob?.cancel()
-                    if (targetWindowWidth >= layoutParams.width && targetWindowHeight >= layoutParams.height) {
+                    val isGrowing = targetWindowWidth >= layoutParams.width && targetWindowHeight >= layoutParams.height
+
+                    if (isGrowing) {
                         // Agrandissement immédiat pour ne pas rogner l'animation
                         layoutParams.width = targetWindowWidth
                         layoutParams.height = targetWindowHeight
+                        layoutParams.flags = targetFlags
                         composeView?.let { view ->
                             try {
                                 windowManager.updateViewLayout(view, layoutParams)
                             } catch (_: Exception) {}
                         }
                     } else {
-                        // Réduction différée pour laisser toute la durée à l'animation Compose fluide
+                        // Si l'îlot passe en mode non tactile (ex. fermeture), libérer immédiatement l'écran
+                        if ((targetFlags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) != 0) {
+                            layoutParams.flags = targetFlags
+                            composeView?.let { view ->
+                                try {
+                                    windowManager.updateViewLayout(view, layoutParams)
+                                } catch (_: Exception) {}
+                            }
+                        }
+                        // Réduction différée des dimensions pour laisser l'animation Compose se refermer
                         resizeJob = serviceScope.launch {
-                            kotlinx.coroutines.delay(520)
+                            kotlinx.coroutines.delay(420)
                             layoutParams.width = targetWindowWidth
                             layoutParams.height = targetWindowHeight
+                            layoutParams.flags = targetFlags
                             composeView?.let { view ->
                                 try {
                                     windowManager.updateViewLayout(view, layoutParams)

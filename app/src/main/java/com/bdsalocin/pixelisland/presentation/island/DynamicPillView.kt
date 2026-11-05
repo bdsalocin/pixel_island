@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -167,18 +168,7 @@ fun DynamicPillView(
     )
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(
-                if (state.isExpanded) {
-                    Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        viewModel.toggleExpand()
-                    }
-                } else Modifier
-            ),
+        modifier = Modifier.wrapContentSize(),
         contentAlignment = Alignment.TopCenter
     ) {
         // Affichage actif tant que l'îlot a une dimension physique visible

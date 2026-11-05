@@ -63,9 +63,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.3
-          name: Pixel Island v1.4.3 APK
-          body: Dynamic Island ouverture fiable de la carte au toucher et fermeture automatique a l arret de la musique
+          tag_name: v1.4.4
+          name: Pixel Island v1.4.4 APK
+          body: Dynamic Island correction blocage tactile ecran et dimensionnement exact
           files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
