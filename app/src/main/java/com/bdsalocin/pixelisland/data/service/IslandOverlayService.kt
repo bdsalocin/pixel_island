@@ -43,7 +43,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
     private lateinit var windowManager: WindowManager
     private var rootLayout: FrameLayout? = null
     private var composeView: ComposeView? = null
-    private lateinit var layoutParams: WindowManager.LayoutParams
+    private lateinit var overlayLayoutParams: WindowManager.LayoutParams
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -105,7 +105,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         // que pas un seul pixel de l'écran n'est bloqué aux clics
         val initialFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
 
-        layoutParams = WindowManager.LayoutParams(
+        overlayLayoutParams = WindowManager.LayoutParams(
             1,
             1,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -208,11 +208,11 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                     if (rect != null && !rect.isEmpty) {
                         val realCutoutY = rect.centerY()
                         val newInitialY = (realCutoutY - (pillHeightPx / 2)).coerceAtLeast(0)
-                        if (layoutParams.y != newInitialY) {
-                            layoutParams.y = newInitialY
+                        if (overlayLayoutParams.y != newInitialY) {
+                            overlayLayoutParams.y = newInitialY
                             rootLayout?.let { v ->
                                 try {
-                                    windowManager.updateViewLayout(v, layoutParams)
+                                    windowManager.updateViewLayout(v, overlayLayoutParams)
                                 } catch (_: Exception) {}
                             }
                         }
@@ -234,7 +234,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         frameContainer.addView(composeView)
         rootLayout = frameContainer
-        windowManager.addView(rootLayout, layoutParams)
+        windowManager.addView(rootLayout, overlayLayoutParams)
 
         // Adapter dynamiquement la surface WindowManager pour qu'elle corresponde exactement
         // à la taille physique de l'îlot sans jamais bloquer les zones environnantes de l'écran
@@ -275,42 +275,42 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                     }
                 }
 
-                val sizeChanged = layoutParams.width != targetWindowWidth || layoutParams.height != targetWindowHeight
-                val flagsChanged = layoutParams.flags != targetFlags
+                val sizeChanged = overlayLayoutParams.width != targetWindowWidth || overlayLayoutParams.height != targetWindowHeight
+                val flagsChanged = overlayLayoutParams.flags != targetFlags
 
                 if (sizeChanged || flagsChanged) {
                     resizeJob?.cancel()
-                    val isGrowing = targetWindowWidth >= layoutParams.width && targetWindowHeight >= layoutParams.height
+                    val isGrowing = targetWindowWidth >= overlayLayoutParams.width && targetWindowHeight >= overlayLayoutParams.height
 
                     if (isGrowing) {
                         // Agrandissement immédiat pour ne pas rogner l'animation
-                        layoutParams.width = targetWindowWidth
-                        layoutParams.height = targetWindowHeight
-                        layoutParams.flags = targetFlags
+                        overlayLayoutParams.width = targetWindowWidth
+                        overlayLayoutParams.height = targetWindowHeight
+                        overlayLayoutParams.flags = targetFlags
                         rootLayout?.let { view ->
                             try {
-                                windowManager.updateViewLayout(view, layoutParams)
+                                windowManager.updateViewLayout(view, overlayLayoutParams)
                             } catch (_: Exception) {}
                         }
                     } else {
                         // Si l'îlot passe en mode non tactile (ex. fermeture), libérer immédiatement l'écran
                         if ((targetFlags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) != 0) {
-                            layoutParams.flags = targetFlags
+                            overlayLayoutParams.flags = targetFlags
                             rootLayout?.let { view ->
                                 try {
-                                    windowManager.updateViewLayout(view, layoutParams)
+                                    windowManager.updateViewLayout(view, overlayLayoutParams)
                                 } catch (_: Exception) {}
                             }
                         }
                         // Réduction différée des dimensions pour laisser l'animation Compose se refermer
                         resizeJob = serviceScope.launch {
                             kotlinx.coroutines.delay(420)
-                            layoutParams.width = targetWindowWidth
-                            layoutParams.height = targetWindowHeight
-                            layoutParams.flags = targetFlags
+                            overlayLayoutParams.width = targetWindowWidth
+                            overlayLayoutParams.height = targetWindowHeight
+                            overlayLayoutParams.flags = targetFlags
                             rootLayout?.let { view ->
                                 try {
-                                    windowManager.updateViewLayout(view, layoutParams)
+                                    windowManager.updateViewLayout(view, overlayLayoutParams)
                                 } catch (_: Exception) {}
                             }
                         }
@@ -326,13 +326,14 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         val container = (application as PixelIslandApplication).appContainer
         container.calculateCutoutAnchorUseCase.onConfigurationChanged(rotation)
 
-        layoutParams.gravity = when (rotation) {
+        overlayLayoutParams.gravity = when (rotation) {
             1 -> Gravity.START or Gravity.CENTER_VERTICAL
             3 -> Gravity.END or Gravity.CENTER_VERTICAL
             else -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
         }
+        overlayLayoutParams.y = if (rotation == 0) getCutoutCenterY() - (40 * resources.displayMetrics.density / 2).toInt() else 0
         try {
-            rootLayout?.let { windowManager.updateViewLayout(it, layoutParams) }
+            rootLayout?.let { windowManager.updateViewLayout(it, overlayLayoutParams) }
         } catch (_: Exception) {}
     }
 
