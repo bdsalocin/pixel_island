@@ -29,11 +29,17 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          gradle :app:assembleDebug --stacktrace 2>&1 | tee build_log.txt || {
-            ERR=$(tail -n 30 build_log.txt | tr '\r\n' '  ')
-            echo "::error title=Gradle Build Failure::$ERR"
-            exit 1
-          }
+          set -o pipefail
+          gradle :app:assembleDebug --stacktrace 2>&1 | tee build_log.txt
+
+      - name: Surface Build Error
+        if: failure()
+        run: |
+          ERR=$(grep -E "(e: |error:|FAILED|Exception)" build_log.txt | tail -n 10 | tr '\r\n' '  ')
+          if [ -z "$ERR" ]; then
+            ERR=$(tail -n 20 build_log.txt | tr '\r\n' '  ')
+          fi
+          echo "::error title=Gradle Error::$ERR"
 
       - name: Prepare APK filename
         run: |
