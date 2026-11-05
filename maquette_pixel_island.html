@@ -30,9 +30,25 @@
     .rotated-landscape {
       transform: rotate(90deg) scale(0.85);
     }
+
+    .gooey-filter {
+      filter: url(#gooey);
+    }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen p-4 md:p-8 font-sans">
+
+  <!-- Filtre SVG Gooey / Metaball pour effet liquide type Apple -->
+  <svg class="hidden" aria-hidden="true">
+    <defs>
+      <filter id="gooey">
+        <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+        <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 19 -8" result="goo" />
+        <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+      </filter>
+    </defs>
+  </svg>
+
   <div class="max-w-6xl mx-auto space-y-8">
     
     <!-- En-tête -->
@@ -40,18 +56,18 @@
       <div>
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-2">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          Maquette Interactive Pixel 8 Pro
+          Branche Preview / Develop
         </div>
-        <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white">Pixel Island Architecture</h1>
+        <h1 class="text-2xl md:text-3xl font-bold tracking-tight text-white">Pixel Island Preview</h1>
         <p class="text-slate-400 text-sm mt-1">
-          Ancrage absolu sur le poinçon matériel, animations symétriques et persistance en mode paysage.
+          Scission multitâche, effet liquide metaball, retours haptiques et gestes tactiles au doigt.
         </p>
       </div>
       
       <div class="flex items-center gap-3">
-        <a href="https://github.com/bdsalocin/pixel_island" target="_blank" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium border border-slate-700 transition flex items-center gap-2">
+        <a href="https://github.com/bdsalocin/pixel_island/tree/develop" target="_blank" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium border border-slate-700 transition flex items-center gap-2">
           <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          Voir le dépôt GitHub
+          Branche develop sur GitHub
         </a>
       </div>
     </header>
@@ -63,26 +79,35 @@
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
           <h2 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
             <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-            Commandes de Test
+            Nouvelles Fonctionnalités
           </h2>
           
-          <div class="space-y-4">
-            <!-- Bouton Musique -->
+          <div class="space-y-3">
+            <!-- Bouton Scission Multitâche (Dual Island) -->
+            <button id="btnDual" onclick="toggleDualIsland()" class="w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700">
+              <span class="flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                <span>Scission Multitâche (Musique + Minuteur)</span>
+              </span>
+              <span id="dualBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400">Inactif</span>
+            </button>
+
+            <!-- Bouton Musique Standard -->
             <button id="btnMusic" onclick="toggleMusic()" class="w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500/30">
               <span class="flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
-                <span id="musicBtnText">Lancer la Musique (Extension Symétrique)</span>
+                <span id="musicBtnText">Musique Seule (Extension Symétrique)</span>
               </span>
-              <span id="musicBadge" class="text-xs px-2 py-0.5 rounded-full bg-white/20">Inactif</span>
+              <span id="musicBadge" class="text-xs px-2 py-0.5 rounded-full bg-white/20">Active</span>
             </button>
 
             <!-- Bouton Déverrouillage Face ID -->
             <button id="btnFace" onclick="triggerFaceUnlock()" class="w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700">
               <span class="flex items-center gap-2">
-                <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                <span>Simuler Déverrouillage Visage (Pixel Face)</span>
+                <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                <span>Déverrouillage Visage (Pixel Face)</span>
               </span>
-              <span class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Poinçon</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Test</span>
             </button>
 
             <!-- Bouton Rotation Paysage -->
@@ -98,38 +123,48 @@
             <button id="btnExpand" onclick="toggleExpand()" class="w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700">
               <span class="flex items-center gap-2">
                 <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
-                <span>Agrandir la Bulle (Toucher Long)</span>
+                <span>Agrandir / Réduire la Carte</span>
               </span>
               <span id="expandBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Compact</span>
             </button>
+
+            <!-- Toggle Effet Liquide Metaballs -->
+            <div class="pt-2 flex items-center justify-between px-2">
+              <span class="text-xs text-slate-300 font-medium">Effet liquide organique (Metaball)</span>
+              <button id="btnGooey" onclick="toggleGooey()" class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                Activé
+              </button>
+            </div>
+
+            <!-- Toggle Vibration Haptique -->
+            <div class="flex items-center justify-between px-2">
+              <span class="text-xs text-slate-300 font-medium">Retour haptique physique</span>
+              <button id="btnHaptic" onclick="toggleHaptic()" class="px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                Activé
+              </button>
+            </div>
           </div>
 
           <div class="mt-6 pt-6 border-t border-slate-800 text-xs text-slate-400 space-y-2">
-            <p class="font-medium text-slate-300">Détails matériels Pixel 8 Pro :</p>
-            <p>• Poinçon caméra centré à 26dp du haut, diamètre 11dp (OLED noir #000000).</p>
-            <p>• En paysage, l'îlot reste physiquement lié au bord gauche (90°) sans glisser.</p>
+            <p class="font-medium text-slate-300">Gestes tactiles directement sur le téléphone :</p>
+            <p>• <strong>Glisser vers l'intérieur</strong> : Réduit et masque la bulle dans le capteur.</p>
+            <p>• <strong>Glisser vers le bas</strong> : Déploie la carte complète avec les commandes.</p>
+            <p>• <strong>Appui simple</strong> : Met en pause ou relance la musique avec vibration.</p>
           </div>
         </div>
 
-        <!-- Explication de la Clean Architecture -->
+        <!-- Informations Branches Git -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
           <h3 class="text-base font-semibold text-white mb-3 flex items-center gap-2">
-            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-            Architecture Métier Propre
+            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+            Organisation des branches Git
           </h3>
-          <div class="space-y-3 text-xs">
-            <div class="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
-              <span class="font-semibold text-emerald-400">Couche Domaine (Pure Kotlin) :</span>
-              <p class="text-slate-300 mt-0.5">Modèles IslandState, MediaTrack et cas d'usage indépendants d'Android.</p>
-            </div>
-            <div class="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
-              <span class="font-semibold text-cyan-400">Couche Données (Data) :</span>
-              <p class="text-slate-300 mt-0.5">MediaSessionManager pour Spotify/YouTube Music, détection Face et Insets.</p>
-            </div>
-            <div class="p-2.5 rounded-lg bg-slate-800/60 border border-slate-700/50">
-              <span class="font-semibold text-indigo-400">Couche Présentation (UI) :</span>
-              <p class="text-slate-300 mt-0.5">Jetpack Compose, WindowManager flottant avec noir OLED et ressorts SpringSpec.</p>
-            </div>
+          <div class="space-y-2 text-xs">
+            <p class="text-slate-300">• <code class="text-indigo-400">develop</code> : Branche d'intégration globale preview.</p>
+            <p class="text-slate-300">• <code class="text-amber-400">feature/dual_island</code> : Scission multitâche.</p>
+            <p class="text-slate-300">• <code class="text-emerald-400">feature/liquid_metaballs</code> : Déformation liquide.</p>
+            <p class="text-slate-300">• <code class="text-cyan-400">feature/swipe_gestures</code> : Détection des balayages.</p>
+            <p class="text-slate-300">• <code class="text-pink-400">feature/haptic_feedback</code> : Moteur haptique.</p>
           </div>
         </div>
       </div>
@@ -141,24 +176,23 @@
           <!-- Châssis Pixel 8 Pro (Aluminium & Verre poli) -->
           <div class="w-[340px] h-[690px] bg-slate-900 rounded-[50px] p-3 shadow-2xl border-4 border-slate-700 relative ring-1 ring-white/10 shadow-indigo-500/10">
             
-            <!-- Écran OLED Pixel 8 Pro -->
+            <!-- Écran OLED Pixel 8 Pro avec arrondi d'écran 40px -->
             <div class="w-full h-full bg-slate-950 rounded-[40px] overflow-hidden relative flex flex-col justify-between border border-slate-800">
               
               <!-- Fond d'écran Pixel Wallpaper subtil -->
               <div class="absolute inset-0 bg-gradient-to-b from-indigo-950/40 via-slate-950 to-slate-950 pointer-events-none"></div>
 
               <!-- Zone Barre d'état & Poinçon Caméra -->
-              <!-- Padding latéral ajusté pour respecter l'arrondi physique de l'écran -->
               <div class="relative w-full pt-3 px-7 flex justify-between items-center text-[11px] text-slate-300 select-none z-40 pointer-events-none">
-                <!-- Heure à gauche avec zone réservée -->
+                <!-- Heure à gauche -->
                 <div class="flex items-center gap-1 min-w-[55px]">
                   <span class="font-semibold tracking-tight text-white/90">09:41</span>
                 </div>
 
-                <!-- Espace central réservé pour le poinçon et l'îlot compact (Zone de sécurité garantie) -->
+                <!-- Espace central sécurisé -->
                 <div class="flex-1 flex justify-center"></div>
 
-                <!-- Icônes Réseau & Batterie à droite avec zone réservée -->
+                <!-- Icônes Réseau & Batterie à droite -->
                 <div class="flex items-center gap-1.5 min-w-[65px] justify-end text-white/90">
                   <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9 0 2.12.74 4.07 1.97 5.61L12 22l7.03-4.39C20.26 16.07 21 14.12 21 12c0-4.97-4.03-9-9-9zm0 2c3.87 0 7 3.13 7 7 0 1.49-.47 2.88-1.27 4.03L12 19.38l-5.73-3.35C5.47 14.88 5 13.49 5 12c0-3.87 3.13-7 7-7z"/></svg>
                   <span class="text-[10px] font-medium">5G</span>
@@ -169,15 +203,15 @@
               </div>
 
               <!-- CONTENEUR DU POINÇON PHYSIQUE ET DE LA DYNAMIC ISLAND -->
-              <!-- Situé exactement au centre en haut de l'écran -->
-              <div class="absolute top-2.5 inset-x-0 flex justify-center items-center pointer-events-auto z-30">
+              <!-- Conteneur avec filtre liquide optionnel -->
+              <div id="islandContainer" class="absolute top-2.5 inset-x-0 flex justify-center items-center pointer-events-auto z-30 gooey-filter gap-2">
                 
-                <!-- LA CAPSULE DYNAMIQUE (OLED Noir #000000 pour fusionner avec la caméra) -->
-                <div id="dynamicIsland" class="spring-transition bg-black text-white rounded-full flex items-center justify-between shadow-2xl border border-white/10 relative overflow-hidden ring-1 ring-black"
-                     style="width: 32px; height: 32px; padding: 0 4px;">
+                <!-- LA CAPSULE DYNAMIQUE PRINCIPALE -->
+                <div id="dynamicIsland" class="spring-transition bg-black text-white rounded-full flex items-center justify-between shadow-2xl border border-white/10 relative overflow-hidden ring-1 ring-black cursor-pointer select-none"
+                     style="width: 164px; height: 34px; padding: 0 4px;">
                   
                   <!-- Éléments gauches : Onde sonore vibrante -->
-                  <div id="leftContent" class="opacity-0 transition-opacity duration-300 flex items-center gap-0.5 pl-2 z-20">
+                  <div id="leftContent" class="transition-opacity duration-300 flex items-center gap-0.5 pl-2 z-20">
                     <div class="w-1 bg-emerald-400 rounded-full bar-1"></div>
                     <div class="w-1 bg-emerald-400 rounded-full bar-2"></div>
                     <div class="w-1 bg-emerald-400 rounded-full bar-3"></div>
@@ -185,21 +219,19 @@
                   </div>
 
                   <!-- CENTRE ABSOLU : Le Poinçon de la Caméra Frontale du Pixel 8 Pro -->
-                  <!-- La vitre du capteur avec son reflet de lentille bleuté -->
                   <div id="cameraHole" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full bg-slate-950 flex items-center justify-center ring-1 ring-slate-800/80 pointer-events-none z-10">
-                    <!-- Lentille interne -->
                     <div class="w-2.5 h-2.5 rounded-full bg-slate-900 flex items-center justify-center">
                       <div class="w-1 h-1 rounded-full bg-indigo-500/40"></div>
                     </div>
                   </div>
 
-                  <!-- Éléments déverrouillage Face Unlock (icône cadenas au centre) -->
+                  <!-- Éléments déverrouillage Face Unlock -->
                   <div id="faceContent" class="opacity-0 transition-opacity duration-300 absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
                     <svg id="lockIcon" class="w-5 h-5 text-emerald-400 spring-transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                   </div>
 
                   <!-- Éléments droits : Pochette d'album musique -->
-                  <div id="rightContent" class="opacity-0 transition-opacity duration-300 flex items-center pr-2 z-20">
+                  <div id="rightContent" class="transition-opacity duration-300 flex items-center pr-2 z-20">
                     <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center overflow-hidden ring-1 ring-white/20">
                       <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                     </div>
@@ -209,7 +241,7 @@
                   <div id="expandedContent" class="opacity-0 transition-opacity duration-300 hidden w-full px-4 py-3 flex-col justify-between h-full z-20">
                     <div class="flex items-center justify-between w-full">
                       <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center shadow">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-pink-500 flex items-center justify-center shadow">
                           <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
                         </div>
                         <div>
@@ -244,17 +276,30 @@
                   </div>
 
                 </div>
+
+                <!-- SATELLITE DÉTACHÉ POUR SCISSION MULTITÂCHE (Minuteur séparé) -->
+                <div id="satelliteIsland" class="spring-transition hidden bg-black text-amber-400 rounded-full flex items-center justify-center shadow-2xl border border-white/10 ring-1 ring-black cursor-pointer"
+                     style="width: 34px; height: 34px;">
+                  <!-- Icône minuteur avec décompte -->
+                  <div class="relative flex items-center justify-center">
+                    <svg class="w-4 h-4 fill-none stroke-current animate-spin" style="animation-duration: 8s;" viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="9" stroke-width="2" stroke-dasharray="40 20"/>
+                    </svg>
+                    <span class="absolute text-[8px] font-bold text-amber-300">4m</span>
+                  </div>
+                </div>
+
               </div>
 
-              <!-- Contenu simulé de l'écran (Widget horloge & notifications Pixel) -->
+              <!-- Contenu simulé de l'écran Pixel -->
               <div class="px-6 pt-16 flex flex-col items-center text-center space-y-4">
                 <div class="p-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 w-full text-left">
                   <div class="flex items-center gap-2 text-xs text-indigo-300 font-medium mb-1">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    <span>Google Pixel 8 Pro</span>
+                    <span>Google Pixel 8 Pro - Branche Preview</span>
                   </div>
                   <p class="text-xs text-slate-300">
-                    La capsule utilise le noir OLED #000000. Le capteur physique au milieu devient invisible.
+                    Essayez de toucher l'îlot directement ou de faire glisser votre doigt vers l'intérieur pour le masquer.
                   </p>
                 </div>
 
@@ -284,12 +329,18 @@
   </div>
 
   <script>
-    let isMusicActive = false;
+    let isMusicActive = true;
     let isFaceActive = false;
     let isLandscape = false;
     let isExpanded = false;
+    let isDualActive = false;
+    let isGooeyEnabled = true;
+    let isHapticEnabled = true;
+    let isHidden = false;
 
     const island = document.getElementById('dynamicIsland');
+    const satellite = document.getElementById('satelliteIsland');
+    const islandContainer = document.getElementById('islandContainer');
     const leftContent = document.getElementById('leftContent');
     const rightContent = document.getElementById('rightContent');
     const faceContent = document.getElementById('faceContent');
@@ -297,10 +348,29 @@
     const lockIcon = document.getElementById('lockIcon');
     const phoneWrapper = document.getElementById('phoneWrapper');
 
+    function triggerHaptic(type) {
+      if (!isHapticEnabled || !('vibrate' in navigator)) return;
+      if (type === 'light') navigator.vibrate(12);
+      else if (type === 'medium') navigator.vibrate(25);
+      else if (type === 'success') navigator.vibrate([20, 40, 20]);
+    }
+
     function toggleMusic() {
       if (isFaceActive) return;
       isMusicActive = !isMusicActive;
       isExpanded = false;
+      isHidden = false;
+      triggerHaptic('medium');
+      renderState();
+    }
+
+    function toggleDualIsland() {
+      if (isFaceActive) return;
+      isDualActive = !isDualActive;
+      if (isDualActive) isMusicActive = true;
+      isExpanded = false;
+      isHidden = false;
+      triggerHaptic('medium');
       renderState();
     }
 
@@ -308,27 +378,32 @@
       if (isFaceActive) return;
       isFaceActive = true;
       const previousMusic = isMusicActive;
+      const previousDual = isDualActive;
       isMusicActive = false;
+      isDualActive = false;
       isExpanded = false;
+      isHidden = false;
+      triggerHaptic('light');
       renderState();
 
-      // Animation du cadenas qui s'ouvre
       setTimeout(() => {
         lockIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path>';
         lockIcon.classList.add('text-emerald-400');
+        triggerHaptic('success');
       }, 700);
 
-      // Rétraction dans le poinçon
       setTimeout(() => {
         isFaceActive = false;
         lockIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>';
         isMusicActive = previousMusic;
+        isDualActive = previousDual;
         renderState();
       }, 1600);
     }
 
     function toggleRotation() {
       isLandscape = !isLandscape;
+      triggerHaptic('medium');
       if (isLandscape) {
         phoneWrapper.classList.add('rotated-landscape');
         document.getElementById('rotateBadge').textContent = 'Paysage (90°)';
@@ -341,32 +416,102 @@
     }
 
     function toggleExpand() {
-      if (!isMusicActive) {
-        toggleMusic();
-        setTimeout(() => {
-          isExpanded = true;
-          renderState();
-        }, 300);
+      if (isHidden) {
+        isHidden = false;
+        renderState();
         return;
       }
       isExpanded = !isExpanded;
+      triggerHaptic('medium');
       renderState();
     }
+
+    function toggleGooey() {
+      isGooeyEnabled = !isGooeyEnabled;
+      const btn = document.getElementById('btnGooey');
+      if (isGooeyEnabled) {
+        islandContainer.classList.add('gooey-filter');
+        btn.textContent = 'Activé';
+        btn.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+      } else {
+        islandContainer.classList.remove('gooey-filter');
+        btn.textContent = 'Désactivé';
+        btn.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-slate-700 text-slate-400 border border-slate-600';
+      }
+    }
+
+    function toggleHaptic() {
+      isHapticEnabled = !isHapticEnabled;
+      const btn = document.getElementById('btnHaptic');
+      if (isHapticEnabled) {
+        btn.textContent = 'Activé';
+        btn.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30';
+        triggerHaptic('light');
+      } else {
+        btn.textContent = 'Désactivé';
+        btn.className = 'px-3 py-1 rounded-full text-xs font-semibold bg-slate-700 text-slate-400 border border-slate-600';
+      }
+    }
+
+    // Gestion des gestes tactiles (Glisser pour masquer / Glisser pour déployer)
+    let startX = 0;
+    let startY = 0;
+
+    island.addEventListener('touchstart', (e) => {
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    }, { passive: true });
+
+    island.addEventListener('touchend', (e) => {
+      const diffX = e.changedTouches[0].clientX - startX;
+      const diffY = e.changedTouches[0].clientY - startY;
+
+      if (Math.abs(diffX) > 40) {
+        // Balayage horizontal : Masquer la bulle
+        isHidden = !isHidden;
+        triggerHaptic('light');
+        renderState();
+      } else if (diffY > 40) {
+        // Balayage vers le bas : Déplier la carte
+        isExpanded = true;
+        triggerHaptic('medium');
+        renderState();
+      } else if (Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
+        // Tap simple : Déplier / replier
+        toggleExpand();
+      }
+    });
+
+    island.addEventListener('click', () => {
+      toggleExpand();
+    });
+
+    satellite.addEventListener('click', (e) => {
+      e.stopPropagation();
+      triggerHaptic('light');
+      alert('Minuteur : 4 minutes restantes');
+    });
 
     function renderState() {
       // Bouton musique
       const btnMusic = document.getElementById('btnMusic');
       const musicText = document.getElementById('musicBtnText');
       const musicBadge = document.getElementById('musicBadge');
+      const dualBadge = document.getElementById('dualBadge');
+
+      dualBadge.textContent = isDualActive ? 'Actif' : 'Inactif';
+      dualBadge.className = isDualActive 
+        ? 'text-xs px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300' 
+        : 'text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400';
 
       if (isMusicActive) {
-        btnMusic.className = 'w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500/30';
-        musicText.textContent = 'Musique en cours (Extension Active)';
-        musicBadge.textContent = 'En Lecture';
-        musicBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-emerald-400/20 text-emerald-200';
+        btnMusic.className = 'w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500/30';
+        musicText.textContent = 'Musique Seule (Extension Symétrique)';
+        musicBadge.textContent = 'Active';
+        musicBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-white/20 text-white';
       } else {
         btnMusic.className = 'w-full py-3 px-4 rounded-xl font-medium text-sm flex items-center justify-between transition border bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700';
-        musicText.textContent = 'Lancer la Musique (Extension Symétrique)';
+        musicText.textContent = 'Lancer la Musique';
         musicBadge.textContent = 'Inactif';
         musicBadge.className = 'text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-400';
       }
@@ -377,9 +522,25 @@
         ? 'text-xs px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300' 
         : 'text-xs px-2 py-0.5 rounded-full bg-slate-700 text-slate-300';
 
-      // Dimensions & Contenu de l'île ajustés au Pixel 8 Pro
-      if (isFaceActive) {
-        // État Face ID : Cercle parfait autour du poinçon
+      // Affichage du satellite multitâche
+      if (isDualActive && !isExpanded && !isHidden && !isFaceActive) {
+        satellite.classList.remove('hidden');
+      } else {
+        satellite.classList.add('hidden');
+      }
+
+      // Dimensions & Contenu de l'île
+      if (isHidden) {
+        // État Masqué au repos
+        island.style.width = '30px';
+        island.style.height = '30px';
+        island.style.borderRadius = '9999px';
+        leftContent.classList.add('opacity-0');
+        rightContent.classList.add('opacity-0');
+        faceContent.classList.add('opacity-0');
+        expandedContent.classList.add('opacity-0', 'hidden');
+      } else if (isFaceActive) {
+        // État Face ID
         island.style.width = '58px';
         island.style.height = '58px';
         island.style.borderRadius = '9999px';
@@ -387,8 +548,8 @@
         rightContent.classList.add('opacity-0');
         expandedContent.classList.add('opacity-0', 'hidden');
         faceContent.classList.remove('opacity-0');
-      } else if (isMusicActive && isExpanded) {
-        // État Musique Étendu : Arrondi de 38px pour épouser l'arrondi de l'écran du Pixel
+      } else if (isExpanded) {
+        // État Carte Agrandie
         island.style.width = '296px';
         island.style.height = '146px';
         island.style.borderRadius = '38px';
@@ -397,8 +558,17 @@
         faceContent.classList.add('opacity-0');
         expandedContent.classList.remove('hidden');
         setTimeout(() => expandedContent.classList.remove('opacity-0'), 150);
+      } else if (isDualActive) {
+        // État Multitâche scindé (Bulle principale musique réduite + satellite minuteur)
+        island.style.width = '125px';
+        island.style.height = '34px';
+        island.style.borderRadius = '9999px';
+        expandedContent.classList.add('opacity-0', 'hidden');
+        faceContent.classList.add('opacity-0');
+        leftContent.classList.remove('opacity-0');
+        rightContent.classList.remove('opacity-0');
       } else if (isMusicActive) {
-        // État Musique Compact : Largeur de 164px pour garantir au moins 20px d'espace libre avec l'heure et la batterie
+        // État Musique Compact Standard
         island.style.width = '164px';
         island.style.height = '34px';
         island.style.borderRadius = '9999px';
@@ -407,7 +577,7 @@
         leftContent.classList.remove('opacity-0');
         rightContent.classList.remove('opacity-0');
       } else {
-        // État Repos : Discrètement enveloppé autour de l'objectif
+        // État Repos
         island.style.width = '30px';
         island.style.height = '30px';
         island.style.borderRadius = '9999px';
