@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.WindowManager
+import android.widget.FrameLayout
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -40,6 +41,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
     override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
 
     private lateinit var windowManager: WindowManager
+    private var rootLayout: FrameLayout? = null
     private var composeView: ComposeView? = null
     private lateinit var layoutParams: WindowManager.LayoutParams
 
@@ -122,7 +124,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         }
 
         val container = (application as PixelIslandApplication).appContainer
-        val islandView: ComposeView = object : ComposeView(this) {
+        val frameContainer = object : FrameLayout(this) {
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
                 if (event.action == MotionEvent.ACTION_OUTSIDE) {
                     val state = container.islandViewModel.uiState.value
@@ -133,17 +135,24 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 }
                 return super.dispatchTouchEvent(event)
             }
+        }.apply {
+            setViewTreeLifecycleOwner(this@IslandOverlayService)
+            setViewTreeSavedStateRegistryOwner(this@IslandOverlayService)
         }
-        islandView.setViewTreeLifecycleOwner(this)
-        islandView.setViewTreeSavedStateRegistryOwner(this)
-        islandView.setContent {
-            DynamicPillView(
-                viewModel = container.islandViewModel
-            )
-        }
-        composeView = islandView
 
-        windowManager.addView(composeView, layoutParams)
+        composeView = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@IslandOverlayService)
+            setViewTreeSavedStateRegistryOwner(this@IslandOverlayService)
+            setContent {
+                DynamicPillView(
+                    viewModel = container.islandViewModel
+                )
+            }
+        }
+
+        frameContainer.addView(composeView)
+        rootLayout = frameContainer
+        windowManager.addView(rootLayout, layoutParams)
 
         // Adapter dynamiquement la surface WindowManager pour qu'elle corresponde exactement
         // à la taille physique de l'îlot sans jamais bloquer les zones environnantes de l'écran
@@ -196,7 +205,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                         layoutParams.width = targetWindowWidth
                         layoutParams.height = targetWindowHeight
                         layoutParams.flags = targetFlags
-                        composeView?.let { view ->
+                        rootLayout?.let { view ->
                             try {
                                 windowManager.updateViewLayout(view, layoutParams)
                             } catch (_: Exception) {}
@@ -205,7 +214,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                         // Si l'îlot passe en mode non tactile (ex. fermeture), libérer immédiatement l'écran
                         if ((targetFlags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) != 0) {
                             layoutParams.flags = targetFlags
-                            composeView?.let { view ->
+                            rootLayout?.let { view ->
                                 try {
                                     windowManager.updateViewLayout(view, layoutParams)
                                 } catch (_: Exception) {}
@@ -217,7 +226,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                             layoutParams.width = targetWindowWidth
                             layoutParams.height = targetWindowHeight
                             layoutParams.flags = targetFlags
-                            composeView?.let { view ->
+                            rootLayout?.let { view ->
                                 try {
                                     windowManager.updateViewLayout(view, layoutParams)
                                 } catch (_: Exception) {}
@@ -241,7 +250,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
             else -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
         }
         try {
-            windowManager.updateViewLayout(composeView, layoutParams)
+            rootLayout?.let { windowManager.updateViewLayout(it, layoutParams) }
         } catch (_: Exception) {}
     }
 
@@ -251,6 +260,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-        composeView?.let { windowManager.removeView(it) }
+        rootLayout?.let { windowManager.removeView(it) }
     }
 }
