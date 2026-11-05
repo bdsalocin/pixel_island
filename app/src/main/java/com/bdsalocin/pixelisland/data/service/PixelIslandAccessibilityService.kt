@@ -285,21 +285,14 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val rotation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            display?.rotation ?: Surface.ROTATION_0
-        } else {
-            @Suppress("DEPRECATION")
-            windowManager.defaultDisplay.rotation
-        }
-        val container = (application as PixelIslandApplication).appContainer
-        container.calculateCutoutAnchorUseCase.onConfigurationChanged(rotation)
+        val isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val density = resources.displayMetrics.density
+        val pillHeightPx = (40 * density).toInt()
 
-        overlayLayoutParams.gravity = when (rotation) {
-            1 -> Gravity.START or Gravity.CENTER_VERTICAL
-            3 -> Gravity.END or Gravity.CENTER_VERTICAL
-            else -> Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        }
-        overlayLayoutParams.y = if (rotation == 0) getCutoutCenterY() - (40 * resources.displayMetrics.density / 2).toInt() else 0
+        // Maintien absolu en haut au centre pour que l'îlot reste à sa place naturelle même à l'horizontale
+        overlayLayoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        overlayLayoutParams.x = 0
+        overlayLayoutParams.y = if (isLandscape) 0 else (getCutoutCenterY() - (pillHeightPx / 2)).coerceAtLeast(0)
         try {
             rootLayout?.let { windowManager.updateViewLayout(it, overlayLayoutParams) }
         } catch (_: Exception) {}

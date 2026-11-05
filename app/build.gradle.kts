@@ -11,8 +11,8 @@ android {
         applicationId = "com.bdsalocin.pixelisland"
         minSdk = 30
         targetSdk = 34
-        versionCode = 19
-        versionName = "1.5.2"
+        versionCode = 20
+        versionName = "1.5.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
