@@ -1,0 +1,57 @@
+package com.bdsalocin.pixelisland.core.di
+
+import android.content.Context
+import com.bdsalocin.pixelisland.data.repository.BiometricRepositoryImpl
+import com.bdsalocin.pixelisland.data.repository.DisplayCutoutRepositoryImpl
+import com.bdsalocin.pixelisland.data.repository.MediaRepositoryImpl
+import com.bdsalocin.pixelisland.domain.repository.BiometricRepository
+import com.bdsalocin.pixelisland.domain.repository.DisplayCutoutRepository
+import com.bdsalocin.pixelisland.domain.repository.MediaRepository
+import com.bdsalocin.pixelisland.domain.usecase.CalculateCutoutAnchorUseCase
+import com.bdsalocin.pixelisland.domain.usecase.ObserveActiveMediaUseCase
+import com.bdsalocin.pixelisland.domain.usecase.ObserveUnlockStateUseCase
+import com.bdsalocin.pixelisland.domain.usecase.TogglePlaybackUseCase
+import com.bdsalocin.pixelisland.presentation.island.IslandViewModel
+
+class AppContainer(private val context: Context) {
+
+    // Repositories
+    val mediaRepository: MediaRepository by lazy {
+        MediaRepositoryImpl(context)
+    }
+
+    val biometricRepository: BiometricRepository by lazy {
+        BiometricRepositoryImpl(context)
+    }
+
+    val displayCutoutRepository: DisplayCutoutRepository by lazy {
+        DisplayCutoutRepositoryImpl(context)
+    }
+
+    // UseCases
+    val observeActiveMediaUseCase by lazy {
+        ObserveActiveMediaUseCase(mediaRepository)
+    }
+
+    val observeUnlockStateUseCase by lazy {
+        ObserveUnlockStateUseCase(biometricRepository)
+    }
+
+    val calculateCutoutAnchorUseCase by lazy {
+        CalculateCutoutAnchorUseCase(displayCutoutRepository)
+    }
+
+    val togglePlaybackUseCase by lazy {
+        TogglePlaybackUseCase(mediaRepository)
+    }
+
+    // ViewModel partagé
+    val islandViewModel by lazy {
+        IslandViewModel(
+            observeActiveMediaUseCase = observeActiveMediaUseCase,
+            observeUnlockStateUseCase = observeUnlockStateUseCase,
+            calculateCutoutAnchorUseCase = calculateCutoutAnchorUseCase,
+            togglePlaybackUseCase = togglePlaybackUseCase
+        )
+    }
+}
