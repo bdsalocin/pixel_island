@@ -177,16 +177,6 @@ fun DynamicPillView(
         (targetWidth - (dragFraction * (384.dp - 180.dp))).coerceIn(180.dp, 384.dp)
     } else {
         animatedWidth
-    }
-
-    val currentPillCornerRadius = if (isDraggingCard && state.isExpanded) {
-        (40.dp + (dragFraction * 50.dp)).coerceAtMost(9999.dp)
-    } else {
-        cornerRadius
-    }
-
-    val currentHeight = (currentPillBottom - animatedTop).coerceAtLeast(0.dp)
-
     // Rayon de courbure adapté : pilule parfaite en compact, squircle élégant pour Face ID et grande carte
     val cornerRadius by animateDpAsState(
         targetValue = when {
@@ -200,6 +190,14 @@ fun DynamicPillView(
         ),
         label = "PillCornerAnimation"
     )
+
+    val currentPillCornerRadius = if (isDraggingCard && state.isExpanded) {
+        (40.dp + (dragFraction * 50.dp)).coerceAtMost(9999.dp)
+    } else {
+        cornerRadius
+    }
+
+    val currentHeight = (currentPillBottom - animatedTop).coerceAtLeast(0.dp)
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
