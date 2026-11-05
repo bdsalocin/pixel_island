@@ -75,14 +75,14 @@ fun DynamicPillView(
     }
 
     val targetBottom = when {
-        state.isFaceUnlockActive -> 58.dp // Cadenas élégant seul sous le poinçon (sans texte)
+        state.isFaceUnlockActive -> 80.dp // Format carré arrondi type iPhone (80dp)
         state.isExpanded -> 180.dp       // Carte agrandie ergonomique et fluide
         state.isMusicActive -> 40.dp     // Hauteur compacte 40dp centrée sur le poinçon
         else -> 28.dp                    // Repli vers le centre du poinçon (y=20dp)
     }
 
     val targetWidth = when {
-        state.isFaceUnlockActive -> 76.dp  // Largeur épurée 76dp pour le cadenas seul
+        state.isFaceUnlockActive -> 80.dp  // Format carré 80dp sur 80dp
         state.isExpanded -> 320.dp         // 320dp pour la carte multimédia
         state.isMusicActive -> 180.dp     // 180dp pour la pilule musique compacte
         else -> 0.dp                      // Rétraction à 0dp en largeur
@@ -122,11 +122,11 @@ fun DynamicPillView(
 
     val currentHeight = (animatedBottom - animatedTop).coerceAtLeast(0.dp)
 
-    // Rayon de courbure adapté : pilule parfaite en compact, galet arrondi pour le cadenas Face ID
+    // Rayon de courbure adapté : pilule parfaite en compact, carré aux bords arrondis type iPhone pour Face ID
     val cornerRadius by animateDpAsState(
         targetValue = when {
             state.isExpanded -> 36.dp
-            state.isFaceUnlockActive -> 29.dp // Galet parfaitement arrondi (58dp / 2 = 29dp)
+            state.isFaceUnlockActive -> 24.dp // Carré aux bords arrondis type iPhone (squircle 24dp)
             else -> 9999.dp
         },
         animationSpec = spring(
@@ -191,13 +191,13 @@ fun DynamicPillView(
                         label = "IslandContentTransition"
                     ) { stage ->
                         when (stage) {
-                            // Vue Déverrouillage Visage (Cadenas seul épuré centré sous le poinçon)
+                            // Vue Déverrouillage Visage (Carré arrondi type iPhone avec cadenas vert abaissé sous le poinçon)
                             IslandStage.FACE_UNLOCK -> {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(58.dp)
-                                        .padding(top = 26.dp, bottom = 6.dp),
+                                        .height(80.dp)
+                                        .padding(top = 40.dp, bottom = 12.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     FaceUnlockScanner(

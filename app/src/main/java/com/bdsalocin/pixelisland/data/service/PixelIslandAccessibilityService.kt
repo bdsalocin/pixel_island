@@ -256,8 +256,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
         when {
             state.isFaceUnlockActive -> {
-                targetWindowWidth = (76 * density).toInt()
-                targetWindowHeight = (62 * density).toInt()
+                targetWindowWidth = (84 * density).toInt()
+                targetWindowHeight = (84 * density).toInt()
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
             shouldBeExpanded -> {

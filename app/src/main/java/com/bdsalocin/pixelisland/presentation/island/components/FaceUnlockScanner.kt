@@ -38,13 +38,8 @@ fun FaceUnlockScanner(
     modifier: Modifier = Modifier
 ) {
     val isUnlocked = status == BiometricStatus.SUCCESS || status == BiometricStatus.IDLE
-
-    val accentColor = when (status) {
-        BiometricStatus.SUCCESS -> Color(0xFF34D399) // Vert émeraude
-        BiometricStatus.SCANNING -> Color(0xFFA5B4FC) // Indigo doux
-        BiometricStatus.FAILED -> Color(0xFFF87171)   // Rouge corail
-        BiometricStatus.IDLE -> Color(0xFF34D399)     // Maintien du vert émeraude pour un fondu de sortie continu
-    }
+    // Couleur verte exclusive pour le cadenas en toute circonstance
+    val greenColor = Color(0xFF34D399)
 
     val transition = rememberInfiniteTransition(label = "FaceScanPulse")
     val pulseScale by transition.animateFloat(
@@ -61,10 +56,10 @@ fun FaceUnlockScanner(
         modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
-        // Cadenas animé seul (sans texte)
+        // Cadenas vert animé seul (sans texte)
         AnimatedPadlock(
             isUnlocked = isUnlocked,
-            color = accentColor,
+            color = greenColor,
             modifier = Modifier.scale(if (status == BiometricStatus.SCANNING) pulseScale else 1f)
         )
     }
