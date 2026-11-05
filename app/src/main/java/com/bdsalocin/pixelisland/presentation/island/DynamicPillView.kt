@@ -6,6 +6,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -185,24 +186,24 @@ fun DynamicPillView(
                                     (fadeIn(animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)) +
                                             scaleIn(initialScale = 0.94f, animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)))
                                         .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
-                                        .using(SizeTransform(clip = false) { _, _ -> null })
+                                        .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 initialState == IslandStage.EXPANDED_CARD && targetState == IslandStage.COMPACT_MUSIC -> {
                                     (fadeIn(animationSpec = tween(160, delayMillis = 50, easing = FastOutSlowInEasing)) +
                                             scaleIn(initialScale = 0.92f, animationSpec = tween(160, delayMillis = 50, easing = FastOutSlowInEasing)))
                                         .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
-                                        .using(SizeTransform(clip = false) { _, _ -> null })
+                                        .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.COMPACT_MUSIC -> {
                                     (fadeIn(animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)) +
                                             scaleIn(initialScale = 0.92f, animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)))
                                         .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
-                                        .using(SizeTransform(clip = false) { _, _ -> null })
+                                        .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 else -> {
                                     fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing))
                                         .togetherWith(fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing)))
-                                        .using(SizeTransform(clip = false) { _, _ -> null })
+                                        .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                             }
                         },
