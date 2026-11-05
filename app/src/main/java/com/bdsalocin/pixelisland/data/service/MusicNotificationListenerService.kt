@@ -5,11 +5,15 @@ import android.service.notification.StatusBarNotification
 
 class MusicNotificationListenerService : NotificationListenerService() {
 
+    companion object {
+        var onNotificationChangeListener: (() -> Unit)? = null
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        // Le service est actif pour autoriser MediaSessionManager à accéder aux sessions
+        onNotificationChangeListener?.invoke()
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
-        // Notification fermée
+        onNotificationChangeListener?.invoke()
     }
 }

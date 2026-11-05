@@ -42,9 +42,9 @@ class BiometricRepositoryImpl(
                         scanTimeoutJob?.cancel()
                         dismissJob?.cancel()
                         trySend(BiometricStatus.SUCCESS)
-                        // Afficher l'icône de cadenas ouvert et la validation pendant 2,3 secondes
+                        // Affichage court et dynamique (950ms) pour ne pas encombrer l'écran
                         dismissJob = scope.launch {
-                            delay(2300)
+                            delay(950)
                             trySend(BiometricStatus.IDLE)
                         }
                     }

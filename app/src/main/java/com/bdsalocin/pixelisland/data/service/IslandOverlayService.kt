@@ -23,11 +23,17 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.bdsalocin.pixelisland.PixelIslandApplication
 import com.bdsalocin.pixelisland.presentation.island.DynamicPillView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
 
     private val lifecycleRegistry = LifecycleRegistry(this)
     private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    private val serviceScope = CoroutineScope(Dispatchers.Main.immediate + Job())
 
     override val lifecycle: Lifecycle get() = lifecycleRegistry
     override val savedStateRegistry: SavedStateRegistry get() = savedStateRegistryController.savedStateRegistry
@@ -124,6 +130,42 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         }
 
         windowManager.addView(composeView, layoutParams)
+
+        // Adapter dynamiquement la surface WindowManager lors de l'expansion pour afficher
+        // l'intégralité de la carte détaillée comme sur iPhone sans aucun rognage
+        serviceScope.launch {
+            container.islandViewModel.uiState.collect { state ->
+                val density = resources.displayMetrics.density
+                val shouldBeExpanded = state.isExpanded
+                val targetWindowWidth = if (shouldBeExpanded) {
+                    (330 * density).toInt()
+                } else if (state.isFaceUnlockActive) {
+                    (210 * density).toInt()
+                } else if (state.isMusicActive) {
+                    (200 * density).toInt()
+                } else {
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                }
+
+                val targetWindowHeight = if (shouldBeExpanded) {
+                    (180 * density).toInt()
+                } else if (state.isFaceUnlockActive) {
+                    (90 * density).toInt()
+                } else if (state.isMusicActive) {
+                    (50 * density).toInt()
+                } else {
+                    WindowManager.LayoutParams.WRAP_CONTENT
+                }
+
+                if (layoutParams.width != targetWindowWidth || layoutParams.height != targetWindowHeight) {
+                    layoutParams.width = targetWindowWidth
+                    layoutParams.height = targetWindowHeight
+                    try {
+                        windowManager.updateViewLayout(composeView, layoutParams)
+                    } catch (_: Exception) {}
+                }
+            }
+        }
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -144,6 +186,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
     override fun onDestroy() {
         super.onDestroy()
+        serviceScope.cancel()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)

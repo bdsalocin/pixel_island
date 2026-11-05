@@ -3,6 +3,7 @@ package com.bdsalocin.pixelisland.data.repository
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
@@ -19,6 +20,7 @@ class MediaRepositoryImpl(
 ) : MediaRepository {
 
     private val sessionManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as? MediaSessionManager
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     private var activeController: MediaController? = null
     private val registeredControllers = mutableSetOf<MediaController>()
 
@@ -51,7 +53,7 @@ class MediaRepositoryImpl(
             }
             registeredControllers.clear()
 
-            // Enregistrer sur toutes les sessions audio actives (Spotify, Myspoti, YouTube Music, etc.)
+            // Enregistrer sur toutes les sessions audio actives (Spotify, Myspoti, YouTube Music, Chrome, etc.)
             controllers?.forEach { controller ->
                 try {
                     controller.registerCallback(controllerCallback)
@@ -66,6 +68,18 @@ class MediaRepositoryImpl(
         }
 
         val componentName = ComponentName(context, MusicNotificationListenerService::class.java)
+
+        // Écouter également les événements de notifications (ex. YouTube ou lecteur vidéo qui démarre)
+        MusicNotificationListenerService.onNotificationChangeListener = {
+            val currentControllers = try {
+                sessionManager?.getActiveSessions(componentName)
+            } catch (_: Exception) {
+                null
+            }
+            attachCallbacks(currentControllers)
+            trySend(resolveBestTrack())
+        }
+
         try {
             sessionManager?.addOnActiveSessionsChangedListener(sessionsListener, componentName)
             val initialControllers = sessionManager?.getActiveSessions(componentName)
@@ -76,6 +90,7 @@ class MediaRepositoryImpl(
         }
 
         awaitClose {
+            MusicNotificationListenerService.onNotificationChangeListener = null
             sessionManager?.removeOnActiveSessionsChangedListener(sessionsListener)
             registeredControllers.forEach { controller ->
                 try {
@@ -94,10 +109,18 @@ class MediaRepositoryImpl(
             emptyList()
         }
 
-        // Trouver en priorité le lecteur en cours de lecture
+        // Trouver en priorité absolue le lecteur en cours de lecture
         val playingController = controllers.firstOrNull { controller ->
             val state = controller.playbackState?.state
-            state == PlaybackState.STATE_PLAYING || state == PlaybackState.STATE_BUFFERING
+            state == PlaybackState.STATE_PLAYING || 
+            state == PlaybackState.STATE_BUFFERING ||
+            state == PlaybackState.STATE_CONNECTING ||
+            state == PlaybackState.STATE_FAST_FORWARDING ||
+            state == PlaybackState.STATE_REWINDING
+        } ?: controllers.firstOrNull { controller ->
+            audioManager?.isMusicActive == true && (controller.metadata != null || controller.playbackState != null)
+        } ?: controllers.firstOrNull { controller ->
+            controller.playbackState?.state == PlaybackState.STATE_PAUSED && controller.metadata != null
         } ?: controllers.firstOrNull { controller ->
             controller.metadata != null
         }
@@ -110,20 +133,44 @@ class MediaRepositoryImpl(
         if (controller == null) return null
         val metadata = controller.metadata
         val playbackState = controller.playbackState
-        val isPlaying = playbackState?.state == PlaybackState.STATE_PLAYING
+        val stateVal = playbackState?.state
+        val isHardwareAudioActive = audioManager?.isMusicActive == true
 
-        // Si rien n'est en lecture et qu'il n'y a pas de métadonnées, ne rien renvoyer
-        if (!isPlaying && metadata == null) return null
+        val isPlaying = stateVal == PlaybackState.STATE_PLAYING ||
+                stateVal == PlaybackState.STATE_BUFFERING ||
+                stateVal == PlaybackState.STATE_CONNECTING ||
+                stateVal == PlaybackState.STATE_FAST_FORWARDING ||
+                stateVal == PlaybackState.STATE_REWINDING ||
+                (isHardwareAudioActive && stateVal != PlaybackState.STATE_PAUSED && stateVal != PlaybackState.STATE_STOPPED)
 
-        val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
+        val appName = try {
+            val pm = context.packageManager
+            val appInfo = pm.getApplicationInfo(controller.packageName, 0)
+            pm.getApplicationLabel(appInfo).toString()
+        } catch (_: Exception) {
+            "Lecture multimédia"
+        }
+
+        // Si rien n'est en lecture, pas de son matériel actif et aucun titre, ne rien renvoyer
+        if (!isPlaying && !isHardwareAudioActive && metadata == null && stateVal != PlaybackState.STATE_PAUSED) {
+            return null
+        }
+
+        val rawTitle = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)
             ?: metadata?.getString(MediaMetadata.METADATA_KEY_DISPLAY_TITLE)
-            ?: "Lecture audio"
+            ?: metadata?.getString(MediaMetadata.METADATA_KEY_DESCRIPTION)
+        
+        val title = if (!rawTitle.isNullOrBlank()) rawTitle else appName
+
         val artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
             ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
             ?: metadata?.getString(MediaMetadata.METADATA_KEY_AUTHOR)
-            ?: ""
+            ?: appName
+
         val albumArt = metadata?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
             ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_ART)
+            ?: metadata?.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+
         val duration = metadata?.getLong(MediaMetadata.METADATA_KEY_DURATION) ?: 0L
         val position = playbackState?.position ?: 0L
 
@@ -133,7 +180,8 @@ class MediaRepositoryImpl(
             albumArt = albumArt,
             isPlaying = isPlaying,
             durationMs = duration,
-            positionMs = position
+            positionMs = position,
+            appName = appName
         )
     }
 

@@ -187,8 +187,9 @@ fun DynamicPillView(
                         }
                     }
 
-                    // Vue Musique Détaillée (Carte Agrandie au clic)
-                    state.isExpanded && state.mediaTrack != null -> {
+                    // Vue Musique Détaillée (Carte Agrandie au clic comme sur iPhone)
+                    state.isExpanded -> {
+                        val track = state.mediaTrack
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -206,7 +207,7 @@ fun DynamicPillView(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.clickable { viewModel.onOpenMusicAppClicked() }
                                 ) {
-                                    val albumArt = state.mediaTrack?.albumArt
+                                    val albumArt = track?.albumArt
                                     if (albumArt != null) {
                                         Image(
                                             bitmap = albumArt.asImageBitmap(),
@@ -235,14 +236,14 @@ fun DynamicPillView(
                                         modifier = Modifier.width(150.dp)
                                     ) {
                                         Text(
-                                            text = state.mediaTrack?.title ?: "",
+                                            text = track?.title ?: "Média en cours",
                                             color = Color.White,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1
                                         )
                                         Text(
-                                            text = state.mediaTrack?.artist ?: "",
+                                            text = if (!track?.artist.isNullOrBlank()) track?.artist ?: "" else track?.appName ?: "",
                                             color = Color.LightGray,
                                             fontSize = 12.sp,
                                             maxLines = 1
@@ -250,10 +251,22 @@ fun DynamicPillView(
                                     }
                                 }
 
-                                EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
+                                EqualizerBars(isPlaying = track?.isPlaying == true)
                             }
 
                             // Barre de progression musicale
+                            val durationMs = track?.durationMs ?: 0L
+                            val positionMs = track?.positionMs ?: 0L
+                            val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0.35f
+                            val positionStr = if (positionMs > 0L) {
+                                val s = positionMs / 1000
+                                "%d:%02d".format(s / 60, s % 60)
+                            } else "0:00"
+                            val durationStr = if (durationMs > 0L) {
+                                val s = durationMs / 1000
+                                "%d:%02d".format(s / 60, s % 60)
+                            } else "--:--"
+
                             Column(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -266,7 +279,7 @@ fun DynamicPillView(
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxWidth(0.45f)
+                                            .fillMaxWidth(progress)
                                             .height(4.dp)
                                             .clip(RoundedCornerShape(2.dp))
                                             .background(Color.White)
@@ -279,8 +292,8 @@ fun DynamicPillView(
                                         .padding(top = 4.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text("1:42", color = Color.Gray, fontSize = 10.sp)
-                                    Text("3:50", color = Color.Gray, fontSize = 10.sp)
+                                    Text(positionStr, color = Color.Gray, fontSize = 10.sp)
+                                    Text(durationStr, color = Color.Gray, fontSize = 10.sp)
                                 }
                             }
 
@@ -295,12 +308,12 @@ fun DynamicPillView(
                                 // Piste précédente
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(38.dp)
                                         .clip(CircleShape)
                                         .clickable { viewModel.onSkipPreviousClicked() },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("⏮", color = Color.White, fontSize = 16.sp)
+                                    Text("⏮", color = Color.White, fontSize = 18.sp)
                                 }
 
                                 Spacer(modifier = Modifier.width(28.dp))
@@ -308,16 +321,16 @@ fun DynamicPillView(
                                 // Lecture / Pause principal
                                 Box(
                                     modifier = Modifier
-                                        .size(42.dp)
+                                        .size(46.dp)
                                         .clip(CircleShape)
                                         .background(Color.White)
                                         .clickable { viewModel.onPlayPauseClicked() },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = if (state.mediaTrack?.isPlaying == true) "❚❚" else "▶",
+                                        text = if (track?.isPlaying == true) "❚❚" else "▶",
                                         color = Color.Black,
-                                        fontSize = 16.sp,
+                                        fontSize = 18.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -327,12 +340,12 @@ fun DynamicPillView(
                                 // Piste suivante
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
+                                        .size(38.dp)
                                         .clip(CircleShape)
                                         .clickable { viewModel.onSkipNextClicked() },
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text("⏭", color = Color.White, fontSize = 16.sp)
+                                    Text("⏭", color = Color.White, fontSize = 18.sp)
                                 }
                             }
                         }
