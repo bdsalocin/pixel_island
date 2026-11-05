@@ -43,13 +43,13 @@ fun FaceUnlockScanner(
     status: BiometricStatus,
     modifier: Modifier = Modifier
 ) {
-    val isUnlocked = status == BiometricStatus.SUCCESS
+    val isUnlocked = status == BiometricStatus.SUCCESS || status == BiometricStatus.IDLE
 
     val accentColor = when (status) {
         BiometricStatus.SUCCESS -> Color(0xFF34D399) // Vert émeraude
         BiometricStatus.SCANNING -> Color(0xFFA5B4FC) // Indigo doux
         BiometricStatus.FAILED -> Color(0xFFF87171)   // Rouge corail
-        BiometricStatus.IDLE -> Color.Transparent
+        BiometricStatus.IDLE -> Color(0xFF34D399)     // Maintien du vert émeraude pour un fondu de sortie continu
     }
 
     val transition = rememberInfiniteTransition(label = "FaceScanPulse")
@@ -77,13 +77,13 @@ fun FaceUnlockScanner(
 
         Spacer(modifier = Modifier.width(10.dp))
 
-        // Texte explicatif affiché vers le bas sous le capteur
+        // Texte explicatif affiché sous le capteur
         Text(
             text = when (status) {
                 BiometricStatus.SUCCESS -> "Déverrouillé"
                 BiometricStatus.SCANNING -> "Pixel Face"
                 BiometricStatus.FAILED -> "Non reconnu"
-                else -> ""
+                BiometricStatus.IDLE -> "Déverrouillé"
             },
             color = if (isUnlocked) Color(0xFF34D399) else Color.White,
             fontSize = 13.sp,

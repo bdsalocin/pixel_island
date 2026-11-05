@@ -257,12 +257,12 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
             }
             shouldBeExpanded -> {
                 targetWindowWidth = (320 * density).toInt()
-                targetWindowHeight = (216 * density).toInt()
+                targetWindowHeight = (184 * density).toInt()
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
             }
             state.isMusicActive -> {
                 targetWindowWidth = (180 * density).toInt()
-                targetWindowHeight = (40 * density).toInt()
+                targetWindowHeight = (44 * density).toInt()
                 targetFlags = baseFlags
             }
             else -> {
@@ -276,19 +276,23 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         val flagsChanged = overlayLayoutParams.flags != targetFlags
 
         if (sizeChanged || flagsChanged) {
-            resizeJob?.cancel()
-            val isGrowing = targetWindowWidth >= overlayLayoutParams.width && targetWindowHeight >= overlayLayoutParams.height
+            val needsBiggerWidth = targetWindowWidth > overlayLayoutParams.width
+            val needsBiggerHeight = targetWindowHeight > overlayLayoutParams.height
 
-            if (isGrowing) {
-                overlayLayoutParams.width = targetWindowWidth
-                overlayLayoutParams.height = targetWindowHeight
+            if (needsBiggerWidth || needsBiggerHeight) {
+                // Agrandissement immédiat de la fenêtre overlay pour ne jamais rogner l'animation Compose
+                overlayLayoutParams.width = maxOf(overlayLayoutParams.width, targetWindowWidth)
+                overlayLayoutParams.height = maxOf(overlayLayoutParams.height, targetWindowHeight)
                 overlayLayoutParams.flags = targetFlags
                 rootLayout?.let { view ->
                     try {
                         windowManager.updateViewLayout(view, overlayLayoutParams)
                     } catch (_: Exception) {}
                 }
-            } else {
+            }
+
+            val isShrinking = targetWindowWidth < overlayLayoutParams.width || targetWindowHeight < overlayLayoutParams.height
+            if (isShrinking) {
                 if ((targetFlags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) != 0) {
                     overlayLayoutParams.flags = targetFlags
                     rootLayout?.let { view ->
@@ -297,10 +301,20 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
                         } catch (_: Exception) {}
                     }
                 }
+                resizeJob?.cancel()
                 resizeJob = serviceScope.launch {
-                    kotlinx.coroutines.delay(420)
+                    kotlinx.coroutines.delay(380)
                     overlayLayoutParams.width = targetWindowWidth
                     overlayLayoutParams.height = targetWindowHeight
+                    overlayLayoutParams.flags = targetFlags
+                    rootLayout?.let { view ->
+                        try {
+                            windowManager.updateViewLayout(view, overlayLayoutParams)
+                        } catch (_: Exception) {}
+                    }
+                }
+            } else if (!needsBiggerWidth && !needsBiggerHeight) {
+                if (flagsChanged) {
                     overlayLayoutParams.flags = targetFlags
                     rootLayout?.let { view ->
                         try {

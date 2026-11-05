@@ -9,6 +9,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -65,29 +66,27 @@ fun DynamicPillView(
     // Vérifie si une action requiert l'affichage de l'îlot
     val isVisible = state.isMusicActive || state.isFaceUnlockActive || state.isExpanded
 
-    // Position verticale locale de l'axe du poinçon dans la fenêtre overlay (20dp sous le bord supérieur)
-    val punchHoleCenterY = 20.dp
-
-    // Calcul dynamique des bornes haut et bas pour garantir un centrage absolu sur le poinçon
+    // Bornes supérieure et inférieure de l'îlot.
+    // En mode actif, le bord supérieur reste toujours ancré à 0dp (autour du poinçon) pour éliminer tout sursaut.
     val targetTop = when {
         state.isFaceUnlockActive -> 0.dp
-        state.isExpanded -> 40.dp // Descend sous la barre d'état pour dégager l'heure, la date et le réseau
+        state.isExpanded -> 0.dp
         state.isMusicActive -> 0.dp
-        else -> 12.dp // S'arrête exactement au bord supérieur du poinçon lors du repli
+        else -> 12.dp // Repli vers le centre du poinçon (y=20dp)
     }
 
     val targetBottom = when {
-        state.isFaceUnlockActive -> 76.dp // Élancé 76dp : cadenas et libellé visibles sous le poinçon
-        state.isExpanded -> 200.dp // 40dp + 160dp
-        state.isMusicActive -> 40.dp
-        else -> 28.dp // Se rétracte directement vers le poinçon
+        state.isFaceUnlockActive -> 76.dp // Élancé 76dp : cadenas et libellé bien visibles sous le poinçon
+        state.isExpanded -> 180.dp       // Carte agrandie ergonomique et fluide
+        state.isMusicActive -> 40.dp     // Hauteur compacte 40dp centrée sur le poinçon
+        else -> 28.dp                    // Repli vers le centre du poinçon (y=20dp)
     }
 
     val targetWidth = when {
-        state.isFaceUnlockActive -> 200.dp // Plus large (200dp) que la musique (180dp) pour une identité visuelle distincte
-        state.isExpanded -> 320.dp
-        state.isMusicActive -> 180.dp
-        else -> 0.dp // Se rétracte à 0 en largeur au centre
+        state.isFaceUnlockActive -> 200.dp // 200dp pour le déverrouillage
+        state.isExpanded -> 320.dp         // 320dp pour la carte multimédia
+        state.isMusicActive -> 180.dp     // 180dp pour la pilule musique compacte
+        else -> 0.dp                      // Rétraction à 0dp en largeur
     }
 
     // Détermination de l'état d'affichage pour la transition douce
@@ -98,55 +97,33 @@ fun DynamicPillView(
         else -> IslandStage.HIDDEN
     }
 
-    // Animation d'absorption dynamique élastique pour la musique (effet de capture type iPhone)
-    // et déploiement ralenti gracieux pour le déverrouillage et la transition post-déverrouillage
-    val isOpeningMusic = state.isMusicActive && isVisible && !state.isExpanded && !state.isFaceUnlockActive
-    val isPostFaceTransition = !state.isFaceUnlockActive && state.isMusicActive && isVisible
-
-    val animSpec = when {
-        state.isFaceUnlockActive && isVisible -> tween<Dp>(
-            durationMillis = 650,
-            easing = FastOutSlowInEasing
-        )
-        isPostFaceTransition -> tween<Dp>(
-            durationMillis = 520,
-            easing = FastOutSlowInEasing
-        )
-        isOpeningMusic -> spring<Dp>(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        )
-        isVisible -> tween<Dp>(
-            durationMillis = 420,
-            easing = FastOutSlowInEasing
-        )
-        else -> tween<Dp>(
-            durationMillis = 420,
-            easing = FastOutSlowInEasing
-        )
-    }
+    // Courbe dynamique fluide de type Dynamic Island (ressort réactif avec amortissement doux)
+    val pillSpringSpec = spring<Dp>(
+        dampingRatio = Spring.DampingRatioLowBouncy,
+        stiffness = Spring.StiffnessMediumLow
+    )
 
     val animatedTop by animateDpAsState(
         targetValue = targetTop,
-        animationSpec = animSpec,
+        animationSpec = pillSpringSpec,
         label = "PillTopAnimation"
     )
 
     val animatedBottom by animateDpAsState(
         targetValue = targetBottom,
-        animationSpec = animSpec,
+        animationSpec = pillSpringSpec,
         label = "PillBottomAnimation"
     )
 
     val animatedWidth by animateDpAsState(
         targetValue = targetWidth,
-        animationSpec = animSpec,
+        animationSpec = pillSpringSpec,
         label = "PillWidthAnimation"
     )
 
     val currentHeight = (animatedBottom - animatedTop).coerceAtLeast(0.dp)
 
-    // Rayon de courbure adapté pour respecter la silhouette de pilule ou rectangle arrondi
+    // Rayon de courbure adapté : pilule parfaite en compact, rectangle arrondi doux en étendu et Face ID
     val cornerRadius by animateDpAsState(
         targetValue = when {
             state.isExpanded -> 36.dp
@@ -155,16 +132,15 @@ fun DynamicPillView(
         },
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMedium
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "PillCornerAnimation"
     )
 
-    // L'opacité du contenu s'estompe rapidement à la fermeture (140ms) pour que la capsule noire
-    // se referme visiblement et sans bavure directement dans le poinçon
+    // Fondu d'opacité global pour une fermeture et ouverture sans scintillement
     val contentAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = if (isVisible) 320 else 140),
+        animationSpec = tween(durationMillis = if (isVisible) 220 else 120),
         label = "ContentAlphaAnimation"
     )
 
@@ -172,7 +148,6 @@ fun DynamicPillView(
         modifier = Modifier.wrapContentSize(),
         contentAlignment = Alignment.TopCenter
     ) {
-        // Affichage actif tant que l'îlot a une dimension physique visible
         if (animatedWidth > 0.5.dp && currentHeight > 0.5.dp) {
             Box(
                 modifier = modifier
@@ -192,8 +167,27 @@ fun DynamicPillView(
                         targetState = currentStage,
                         contentAlignment = Alignment.TopCenter,
                         transitionSpec = {
-                            fadeIn(animationSpec = tween(320, delayMillis = 60, easing = FastOutSlowInEasing)) togetherWith
-                            fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                            when {
+                                initialState == IslandStage.COMPACT_MUSIC && targetState == IslandStage.EXPANDED_CARD -> {
+                                    (fadeIn(animationSpec = tween(220, delayMillis = 80, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.92f, animationSpec = tween(220, delayMillis = 80, easing = FastOutSlowInEasing))) togetherWith
+                                            fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
+                                }
+                                initialState == IslandStage.EXPANDED_CARD && targetState == IslandStage.COMPACT_MUSIC -> {
+                                    (fadeIn(animationSpec = tween(180, delayMillis = 110, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.88f, animationSpec = tween(180, delayMillis = 110, easing = FastOutSlowInEasing))) togetherWith
+                                            fadeOut(animationSpec = tween(100, easing = FastOutSlowInEasing))
+                                }
+                                initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.COMPACT_MUSIC -> {
+                                    (fadeIn(animationSpec = tween(220, delayMillis = 80, easing = FastOutSlowInEasing)) +
+                                            scaleIn(initialScale = 0.90f, animationSpec = tween(220, delayMillis = 80, easing = FastOutSlowInEasing))) togetherWith
+                                            fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing))
+                                }
+                                else -> {
+                                    fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing)) togetherWith
+                                            fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing))
+                                }
+                            }
                         },
                         label = "IslandContentTransition"
                     ) { stage ->
@@ -221,8 +215,8 @@ fun DynamicPillView(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(160.dp)
-                                        .padding(16.dp),
+                                        .height(180.dp)
+                                        .padding(top = 22.dp, bottom = 14.dp, start = 16.dp, end = 16.dp),
                                     verticalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     // En-tête : Pochette, Titre, Artiste et Visualiseur sonore
