@@ -101,9 +101,7 @@ class IslandViewModel(
         val now = System.currentTimeMillis()
         if (now - lastToggleTime < 250) return
         lastToggleTime = now
-        if (_uiState.value.mediaTrack != null) {
-            _uiState.update { it.copy(isExpanded = !it.isExpanded) }
-        }
+        _uiState.update { it.copy(isExpanded = !it.isExpanded) }
     }
 
     fun onPlayPauseClicked() {
