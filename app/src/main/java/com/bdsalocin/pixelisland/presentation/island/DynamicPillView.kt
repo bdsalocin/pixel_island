@@ -1,6 +1,6 @@
 package com.bdsalocin.pixelisland.presentation.island
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -9,10 +9,10 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +30,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,12 +37,20 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bdsalocin.pixelisland.presentation.island.components.EqualizerBars
 import com.bdsalocin.pixelisland.presentation.island.components.FaceUnlockScanner
+
+enum class IslandStage {
+    FACE_UNLOCK,
+    EXPANDED_CARD,
+    COMPACT_MUSIC,
+    HIDDEN
+}
 
 @Composable
 fun DynamicPillView(
@@ -80,12 +87,26 @@ fun DynamicPillView(
         else -> 0.dp // Se rétracte à 0 en largeur au centre
     }
 
+    // Détermination de l'état d'affichage pour la transition douce
+    val currentStage = when {
+        state.isFaceUnlockActive -> IslandStage.FACE_UNLOCK
+        state.isExpanded -> IslandStage.EXPANDED_CARD
+        state.isMusicActive && state.mediaTrack != null -> IslandStage.COMPACT_MUSIC
+        else -> IslandStage.HIDDEN
+    }
+
     // Animation d'absorption dynamique élastique pour la musique (effet de capture type iPhone)
-    // et déploiement ralenti gracieux pour le déverrouillage
+    // et déploiement ralenti gracieux pour le déverrouillage et la transition post-déverrouillage
     val isOpeningMusic = state.isMusicActive && isVisible && !state.isExpanded
+    val isPostFaceTransition = !state.isFaceUnlockActive && state.isMusicActive && isVisible
+
     val animSpec = when {
         state.isFaceUnlockActive && isVisible -> tween<Dp>(
             durationMillis = 650,
+            easing = FastOutSlowInEasing
+        )
+        isPostFaceTransition -> tween<Dp>(
+            durationMillis = 480,
             easing = FastOutSlowInEasing
         )
         isOpeningMusic -> spring<Dp>(
@@ -144,83 +165,258 @@ fun DynamicPillView(
         label = "ContentAlphaAnimation"
     )
 
-    // Affichage actif tant que l'îlot a une dimension physique visible
-    if (animatedWidth > 0.5.dp && currentHeight > 0.5.dp) {
-        Box(
-            modifier = modifier
-                .padding(top = animatedTop)
-                .width(animatedWidth)
-                .height(currentHeight)
-                .clip(RoundedCornerShape(cornerRadius))
-                .background(Color.Black)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) {
-                    if (state.isMusicActive || state.isExpanded) {
-                        viewModel.toggleExpand()
-                    }
-                },
-            contentAlignment = Alignment.Center
-        ) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        // Affichage actif tant que l'îlot a une dimension physique visible
+        if (animatedWidth > 0.5.dp && currentHeight > 0.5.dp) {
             Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = contentAlpha }
+                modifier = modifier
+                    .padding(top = animatedTop)
+                    .width(animatedWidth)
+                    .height(currentHeight)
+                    .clip(RoundedCornerShape(cornerRadius))
+                    .background(Color.Black)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onTap = {
+                                if (state.isMusicActive || state.isExpanded) {
+                                    viewModel.toggleExpand()
+                                }
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
             ) {
-                when {
-                    // Vue Déverrouillage Visage (Face Unlock affiché vers le bas sous le poinçon)
-                    state.isFaceUnlockActive -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 14.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Bottom
-                        ) {
-                            FaceUnlockScanner(
-                                status = state.biometricStatus,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 10.dp)
-                            )
-                        }
-                    }
-
-                    // Vue Musique Détaillée (Carte Agrandie au clic comme sur iPhone)
-                    state.isExpanded -> {
-                        val track = state.mediaTrack
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            // En-tête : Pochette, Titre, Artiste et Visualiseur sonore
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.clickable { viewModel.onOpenMusicAppClicked() }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = contentAlpha }
+                ) {
+                    AnimatedContent(
+                        targetState = currentStage,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(320, delayMillis = 60, easing = FastOutSlowInEasing)) togetherWith
+                            fadeOut(animationSpec = tween(200, easing = FastOutSlowInEasing))
+                        },
+                        label = "IslandContentTransition"
+                    ) { stage ->
+                        when (stage) {
+                            // Vue Déverrouillage Visage (Face Unlock affiché vers le bas sous le poinçon)
+                            IslandStage.FACE_UNLOCK -> {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 14.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Bottom
                                 ) {
-                                    val albumArt = track?.albumArt
-                                    if (albumArt != null) {
-                                        Image(
-                                            bitmap = albumArt.asImageBitmap(),
-                                            contentDescription = "Pochette d'album",
+                                    FaceUnlockScanner(
+                                        status = state.biometricStatus,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 10.dp)
+                                    )
+                                }
+                            }
+
+                            // Vue Musique Détaillée (Carte Agrandie au clic comme sur iPhone)
+                            IslandStage.EXPANDED_CARD -> {
+                                val track = state.mediaTrack
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(16.dp),
+                                    verticalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    // En-tête : Pochette, Titre, Artiste et Visualiseur sonore
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.pointerInput(Unit) {
+                                                detectTapGestures { viewModel.onOpenMusicAppClicked() }
+                                            }
+                                        ) {
+                                            val albumArt = track?.albumArt
+                                            if (albumArt != null) {
+                                                Image(
+                                                    bitmap = albumArt.asImageBitmap(),
+                                                    contentDescription = "Pochette d'album",
+                                                    modifier = Modifier
+                                                        .size(46.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                )
+                                            } else {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(46.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(
+                                                            Brush.linearGradient(
+                                                                listOf(Color(0xFF6366F1), Color(0xFFEC4899))
+                                                            )
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text("♪", color = Color.White, fontSize = 22.sp)
+                                                }
+                                            }
+
+                                            Column(
+                                                modifier = Modifier.width(150.dp)
+                                            ) {
+                                                Text(
+                                                    text = track?.title ?: "Média en cours",
+                                                    color = Color.White,
+                                                    fontSize = 14.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    maxLines = 1
+                                                )
+                                                Text(
+                                                    text = if (!track?.artist.isNullOrBlank()) track?.artist ?: "" else track?.appName ?: "",
+                                                    color = Color.LightGray,
+                                                    fontSize = 12.sp,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+
+                                        EqualizerBars(isPlaying = track?.isPlaying == true)
+                                    }
+
+                                    // Barre de progression musicale
+                                    val durationMs = track?.durationMs ?: 0L
+                                    val positionMs = track?.positionMs ?: 0L
+                                    val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0.01f, 1f) else 0.35f
+                                    val positionStr = formatMediaTime(positionMs)
+                                    val durationStr = if (durationMs > 0L) formatMediaTime(durationMs) else "--:--"
+
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(4.dp)
+                                                .clip(RoundedCornerShape(2.dp))
+                                                .background(Color.White.copy(alpha = 0.2f))
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth(progress)
+                                                    .height(4.dp)
+                                                    .clip(RoundedCornerShape(2.dp))
+                                                    .background(Color.White)
+                                            )
+                                        }
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(positionStr, color = Color.Gray, fontSize = 10.sp)
+                                            Text(durationStr, color = Color.Gray, fontSize = 10.sp)
+                                        }
+                                    }
+
+                                    // Commandes multimédias : Précédent, Lecture / Pause, Suivant
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 2.dp),
+                                        horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Piste précédente
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(CircleShape)
+                                                .pointerInput(Unit) {
+                                                    detectTapGestures { viewModel.onSkipPreviousClicked() }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("⏮", color = Color.White, fontSize = 18.sp)
+                                        }
+
+                                        Spacer(modifier = Modifier.width(28.dp))
+
+                                        // Lecture / Pause principal
+                                        Box(
                                             modifier = Modifier
                                                 .size(46.dp)
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .clip(CircleShape)
+                                                .background(Color.White)
+                                                .pointerInput(Unit) {
+                                                    detectTapGestures { viewModel.onPlayPauseClicked() }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = if (track?.isPlaying == true) "❚❚" else "▶",
+                                                color = Color.Black,
+                                                fontSize = 18.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(28.dp))
+
+                                        // Piste suivante
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(CircleShape)
+                                                .pointerInput(Unit) {
+                                                    detectTapGestures { viewModel.onSkipNextClicked() }
+                                                },
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text("⏭", color = Color.White, fontSize = 18.sp)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Vue Musique Compacte (Hauteur 40dp confortable, symétrie autour du capteur)
+                            IslandStage.COMPACT_MUSIC -> {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Côté gauche : Onde sonore vibrante (s'arrête au repos si en pause)
+                                    EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
+
+                                    // Centre : Espace réservé pour le poinçon de la caméra frontale
+                                    Spacer(modifier = Modifier.width(36.dp))
+
+                                    // Côté droit : Miniature de l'album ou icône musicale (sans clickable interne pour ouvrir la carte au toucher)
+                                    val miniature = state.mediaTrack?.albumArt
+                                    if (miniature != null) {
+                                        Image(
+                                            bitmap = miniature.asImageBitmap(),
+                                            contentDescription = "Pochette miniature",
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
                                         )
                                     } else {
                                         Box(
                                             modifier = Modifier
-                                                .size(46.dp)
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .size(24.dp)
+                                                .clip(CircleShape)
                                                 .background(
                                                     Brush.linearGradient(
                                                         listOf(Color(0xFF6366F1), Color(0xFFEC4899))
@@ -228,170 +424,14 @@ fun DynamicPillView(
                                                 ),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            Text("♪", color = Color.White, fontSize = 22.sp)
+                                            Text("♪", color = Color.White, fontSize = 12.sp)
                                         }
                                     }
-
-                                    Column(
-                                        modifier = Modifier.width(150.dp)
-                                    ) {
-                                        Text(
-                                            text = track?.title ?: "Média en cours",
-                                            color = Color.White,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1
-                                        )
-                                        Text(
-                                            text = if (!track?.artist.isNullOrBlank()) track?.artist ?: "" else track?.appName ?: "",
-                                            color = Color.LightGray,
-                                            fontSize = 12.sp,
-                                            maxLines = 1
-                                        )
-                                    }
-                                }
-
-                                EqualizerBars(isPlaying = track?.isPlaying == true)
-                            }
-
-                            // Barre de progression musicale
-                            val durationMs = track?.durationMs ?: 0L
-                            val positionMs = track?.positionMs ?: 0L
-                            val progress = if (durationMs > 0L) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0.01f, 1f) else 0.35f
-                            val positionStr = formatMediaTime(positionMs)
-                            val durationStr = if (durationMs > 0L) formatMediaTime(durationMs) else "--:--"
-
-                            Column(
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(4.dp)
-                                        .clip(RoundedCornerShape(2.dp))
-                                        .background(Color.White.copy(alpha = 0.2f))
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(progress)
-                                            .height(4.dp)
-                                            .clip(RoundedCornerShape(2.dp))
-                                            .background(Color.White)
-                                    )
-                                }
-
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text(positionStr, color = Color.Gray, fontSize = 10.sp)
-                                    Text(durationStr, color = Color.Gray, fontSize = 10.sp)
                                 }
                             }
 
-                            // Commandes multimédias : Précédent, Lecture / Pause, Suivant
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 2.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Piste précédente
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .clickable { viewModel.onSkipPreviousClicked() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("⏮", color = Color.White, fontSize = 18.sp)
-                                }
-
-                                Spacer(modifier = Modifier.width(28.dp))
-
-                                // Lecture / Pause principal
-                                Box(
-                                    modifier = Modifier
-                                        .size(46.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White)
-                                        .clickable { viewModel.onPlayPauseClicked() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = if (track?.isPlaying == true) "❚❚" else "▶",
-                                        color = Color.Black,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(28.dp))
-
-                                // Piste suivante
-                                Box(
-                                    modifier = Modifier
-                                        .size(38.dp)
-                                        .clip(CircleShape)
-                                        .clickable { viewModel.onSkipNextClicked() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("⏭", color = Color.White, fontSize = 18.sp)
-                                }
-                            }
-                        }
-                    }
-
-                    // Vue Musique Compacte (Hauteur 40dp confortable, symétrie autour du capteur)
-                    state.isMusicActive && state.mediaTrack != null -> {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Côté gauche : Onde sonore vibrante
-                            AnimatedVisibility(
-                                visible = true,
-                                enter = fadeIn(),
-                                exit = fadeOut()
-                            ) {
-                                EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
-                            }
-
-                            // Centre : Espace réservé pour le poinçon de la caméra frontale
-                            Spacer(modifier = Modifier.width(36.dp))
-
-                            // Côté droit : Miniature de l'album ou icône musicale
-                            val miniature = state.mediaTrack?.albumArt
-                            if (miniature != null) {
-                                Image(
-                                    bitmap = miniature.asImageBitmap(),
-                                    contentDescription = "Pochette miniature",
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .clickable { viewModel.onOpenMusicAppClicked() }
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            Brush.linearGradient(
-                                                listOf(Color(0xFF6366F1), Color(0xFFEC4899))
-                                            )
-                                        )
-                                        .clickable { viewModel.onOpenMusicAppClicked() },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("♪", color = Color.White, fontSize = 12.sp)
-                                }
+                            IslandStage.HIDDEN -> {
+                                Spacer(modifier = Modifier.fillMaxSize())
                             }
                         }
                     }

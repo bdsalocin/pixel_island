@@ -119,7 +119,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         val container = (application as PixelIslandApplication).appContainer
         composeView = ComposeView(this).apply {
-            isClickable = true
             setViewTreeLifecycleOwner(this@IslandOverlayService)
             setViewTreeSavedStateRegistryOwner(this@IslandOverlayService)
             setContent {
@@ -133,12 +132,13 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         // Adapter dynamiquement la surface WindowManager lors de l'expansion pour afficher
         // l'intégralité de la carte détaillée comme sur iPhone sans aucun rognage
+        var resizeJob: Job? = null
         serviceScope.launch {
             container.islandViewModel.uiState.collect { state ->
                 val density = resources.displayMetrics.density
                 val shouldBeExpanded = state.isExpanded
                 val targetWindowWidth = if (shouldBeExpanded) {
-                    (330 * density).toInt()
+                    (340 * density).toInt()
                 } else if (state.isFaceUnlockActive) {
                     (210 * density).toInt()
                 } else if (state.isMusicActive) {
@@ -148,7 +148,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 }
 
                 val targetWindowHeight = if (shouldBeExpanded) {
-                    (180 * density).toInt()
+                    (190 * density).toInt()
                 } else if (state.isFaceUnlockActive) {
                     (90 * density).toInt()
                 } else if (state.isMusicActive) {
@@ -158,13 +158,28 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 }
 
                 if (layoutParams.width != targetWindowWidth || layoutParams.height != targetWindowHeight) {
-                    layoutParams.width = targetWindowWidth
-                    layoutParams.height = targetWindowHeight
-                    val view = composeView
-                    if (view != null) {
-                        try {
-                            windowManager.updateViewLayout(view, layoutParams)
-                        } catch (_: Exception) {}
+                    resizeJob?.cancel()
+                    if (targetWindowWidth >= layoutParams.width && targetWindowHeight >= layoutParams.height) {
+                        // Agrandissement immédiat pour ne pas rogner l'animation
+                        layoutParams.width = targetWindowWidth
+                        layoutParams.height = targetWindowHeight
+                        composeView?.let { view ->
+                            try {
+                                windowManager.updateViewLayout(view, layoutParams)
+                            } catch (_: Exception) {}
+                        }
+                    } else {
+                        // Réduction différée pour laisser toute la durée à l'animation Compose fluide
+                        resizeJob = serviceScope.launch {
+                            kotlinx.coroutines.delay(520)
+                            layoutParams.width = targetWindowWidth
+                            layoutParams.height = targetWindowHeight
+                            composeView?.let { view ->
+                                try {
+                                    windowManager.updateViewLayout(view, layoutParams)
+                                } catch (_: Exception) {}
+                            }
+                        }
                     }
                 }
             }

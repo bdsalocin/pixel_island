@@ -8,8 +8,9 @@ data class IslandUiState(
     val mediaTrack: MediaTrack? = null,
     val biometricStatus: BiometricStatus = BiometricStatus.IDLE,
     val cutoutGeometry: CutoutGeometry? = null,
-    val isExpanded: Boolean = false
+    val isExpanded: Boolean = false,
+    val isPausedGraceActive: Boolean = false
 ) {
-    val isMusicActive: Boolean get() = (mediaTrack?.isPlaying == true) || (isExpanded && mediaTrack != null)
+    val isMusicActive: Boolean get() = (mediaTrack != null && (mediaTrack.isPlaying || isPausedGraceActive || isExpanded))
     val isFaceUnlockActive: Boolean get() = biometricStatus == BiometricStatus.SCANNING || biometricStatus == BiometricStatus.SUCCESS
 }

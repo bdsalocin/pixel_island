@@ -63,9 +63,9 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.4.1
-          name: Pixel Island v1.4.1 APK
-          body: Dynamic Island carte media interactive au clic, detection robuste audio video et fermeture rapide Pixel Face
+          tag_name: v1.4.2
+          name: Pixel Island v1.4.2 APK
+          body: Dynamic Island transition fluide Pixel Face vers musique, ouverture carte au clic et maintien pause fiable
           files: app/build/outputs/apk/debug/pixel_island.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

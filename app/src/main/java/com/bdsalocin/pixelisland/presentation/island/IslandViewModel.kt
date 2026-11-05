@@ -9,6 +9,8 @@ import com.bdsalocin.pixelisland.domain.usecase.OpenMusicAppUseCase
 import com.bdsalocin.pixelisland.domain.usecase.SkipNextUseCase
 import com.bdsalocin.pixelisland.domain.usecase.SkipPreviousUseCase
 import com.bdsalocin.pixelisland.domain.usecase.TogglePlaybackUseCase
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -27,6 +29,8 @@ class IslandViewModel(
     private val _uiState = MutableStateFlow(IslandUiState())
     val uiState = _uiState.asStateFlow()
 
+    private var pauseDismissJob: Job? = null
+
     init {
         observeMedia()
         observeBiometrics()
@@ -36,7 +40,21 @@ class IslandViewModel(
     private fun observeMedia() {
         viewModelScope.launch {
             observeActiveMediaUseCase().collect { track ->
-                _uiState.update { it.copy(mediaTrack = track) }
+                if (track?.isPlaying == true) {
+                    pauseDismissJob?.cancel()
+                    _uiState.update { it.copy(mediaTrack = track, isPausedGraceActive = false) }
+                } else if (track != null) {
+                    // Piste en pause : maintenir l'affichage pendant 6 secondes de grâce
+                    _uiState.update { it.copy(mediaTrack = track, isPausedGraceActive = true) }
+                    pauseDismissJob?.cancel()
+                    pauseDismissJob = viewModelScope.launch {
+                        delay(6000)
+                        _uiState.update { it.copy(isPausedGraceActive = false) }
+                    }
+                } else {
+                    pauseDismissJob?.cancel()
+                    _uiState.update { it.copy(mediaTrack = null, isPausedGraceActive = false) }
+                }
             }
         }
     }

@@ -8,12 +8,16 @@ import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSessionManager
 import android.media.session.PlaybackState
+import android.os.Handler
+import android.os.Looper
 import com.bdsalocin.pixelisland.data.service.MusicNotificationListenerService
 import com.bdsalocin.pixelisland.domain.model.MediaTrack
 import com.bdsalocin.pixelisland.domain.repository.MediaRepository
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 
 class MediaRepositoryImpl(
     private val context: Context
@@ -23,6 +27,7 @@ class MediaRepositoryImpl(
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
     private var activeController: MediaController? = null
     private val registeredControllers = mutableSetOf<MediaController>()
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     override fun observeCurrentTrack(): Flow<MediaTrack?> = callbackFlow {
         val controllerCallback = object : MediaController.Callback() {
@@ -45,6 +50,10 @@ class MediaRepositoryImpl(
         }
 
         fun attachCallbacks(controllers: List<MediaController>?) {
+            if (controllers.isNullOrEmpty() && registeredControllers.isNotEmpty()) {
+                // Conserver les écouteurs existants si la liste renvoyée est temporairement vide
+                return
+            }
             // Détacher les anciens callbacks
             registeredControllers.forEach { controller ->
                 try {
@@ -53,10 +62,10 @@ class MediaRepositoryImpl(
             }
             registeredControllers.clear()
 
-            // Enregistrer sur toutes les sessions audio actives (Spotify, Myspoti, YouTube Music, Chrome, etc.)
+            // Enregistrer sur toutes les sessions audio actives avec le MainLooper
             controllers?.forEach { controller ->
                 try {
-                    controller.registerCallback(controllerCallback)
+                    controller.registerCallback(controllerCallback, mainHandler)
                     registeredControllers.add(controller)
                 } catch (_: Exception) {}
             }
@@ -71,17 +80,19 @@ class MediaRepositoryImpl(
 
         // Écouter également les événements de notifications (ex. YouTube ou lecteur vidéo qui démarre)
         MusicNotificationListenerService.onNotificationChangeListener = {
-            val currentControllers = try {
-                sessionManager?.getActiveSessions(componentName)
-            } catch (_: Exception) {
-                null
+            mainHandler.post {
+                val currentControllers = try {
+                    sessionManager?.getActiveSessions(componentName)
+                } catch (_: Exception) {
+                    null
+                }
+                attachCallbacks(currentControllers)
+                trySend(resolveBestTrack())
             }
-            attachCallbacks(currentControllers)
-            trySend(resolveBestTrack())
         }
 
         try {
-            sessionManager?.addOnActiveSessionsChangedListener(sessionsListener, componentName)
+            sessionManager?.addOnActiveSessionsChangedListener(sessionsListener, componentName, mainHandler)
             val initialControllers = sessionManager?.getActiveSessions(componentName)
             attachCallbacks(initialControllers)
             trySend(resolveBestTrack())
@@ -89,7 +100,26 @@ class MediaRepositoryImpl(
             trySend(null)
         }
 
+        // Synchronisation périodique de sécurité (toutes les secondes) pour ne jamais perdre l'état de lecture
+        val pollJob = launch {
+            while (true) {
+                delay(1000)
+                try {
+                    val currentControllers = try {
+                        sessionManager?.getActiveSessions(componentName)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    if (!currentControllers.isNullOrEmpty() && registeredControllers.isEmpty()) {
+                        attachCallbacks(currentControllers)
+                    }
+                    trySend(resolveBestTrack())
+                } catch (_: Exception) {}
+            }
+        }
+
         awaitClose {
+            pollJob.cancel()
             MusicNotificationListenerService.onNotificationChangeListener = null
             sessionManager?.removeOnActiveSessionsChangedListener(sessionsListener)
             registeredControllers.forEach { controller ->
@@ -195,29 +225,29 @@ class MediaRepositoryImpl(
         }
     }
 
-    override suspend fun skipToNext() {
+    override suspend fun skipNext() {
         activeController?.transportControls?.skipToNext()
     }
 
-    override suspend fun skipToPrevious() {
+    override suspend fun skipPrevious() {
         activeController?.transportControls?.skipToPrevious()
     }
 
     override suspend fun openMusicApp() {
-        try {
-            val sessionIntent = activeController?.sessionActivity
-            if (sessionIntent != null) {
-                sessionIntent.send()
-            } else {
-                val packageName = activeController?.packageName
-                if (packageName != null) {
-                    val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
-                    launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    if (launchIntent != null) {
-                        context.startActivity(launchIntent)
-                    }
-                }
+        activeController?.let { controller ->
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(controller.packageName)
+            launchIntent?.let {
+                it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(it)
+                return
             }
+        }
+        val defaultIntent = Intent(Intent.ACTION_MAIN).apply {
+            addCategory(Intent.CATEGORY_APP_MUSIC)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(defaultIntent)
         } catch (_: Exception) {}
     }
 }
