@@ -104,6 +104,12 @@ class IslandViewModel(
         _uiState.update { it.copy(isExpanded = !it.isExpanded) }
     }
 
+    fun collapseIsland() {
+        if (_uiState.value.isExpanded) {
+            _uiState.update { it.copy(isExpanded = false) }
+        }
+    }
+
     fun onPlayPauseClicked() {
         viewModelScope.launch {
             togglePlaybackUseCase()

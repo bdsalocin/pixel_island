@@ -53,6 +53,13 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
     private var rootLayout: FrameLayout? = null
     private var composeView: ComposeView? = null
     private lateinit var overlayLayoutParams: WindowManager.LayoutParams
+    private var resizeJob: Job? = null
+
+    private val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -115,12 +122,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         val cutoutCenterY = getCutoutCenterY()
         val initialY = (cutoutCenterY - (pillHeightPx / 2)).coerceAtLeast(0)
 
-        val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-
         val initialFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
 
         overlayLayoutParams = WindowManager.LayoutParams(
@@ -158,7 +159,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                 val state = container.islandViewModel.uiState.value
                 val d = resources.displayMetrics.density
 
-                // Si la carte est ouverte et qu'on tape dans la marge au-dessus (zone barre d'état)
                 if (state.isExpanded) {
                     if (event.actionMasked == MotionEvent.ACTION_UP && event.y < 40 * d) {
                         container.islandViewModel.toggleExpand()
@@ -167,11 +167,10 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                     return super.dispatchTouchEvent(event)
                 }
 
-                // Si l'îlot est en mode compact musique :
                 if (state.isMusicActive) {
                     val w = if (width > 0) width.toFloat() else (180f * d)
                     val centerX = w / 2f
-                    val deadZone = 16f * d // 32dp au centre réservé pour le capteur photo
+                    val deadZone = 16f * d
 
                     when (event.actionMasked) {
                         MotionEvent.ACTION_DOWN -> {
@@ -179,7 +178,6 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                             startRawY = event.rawY
                             startLocalX = event.x
                             startTime = System.currentTimeMillis()
-                            // Consommer ACTION_DOWN pour garantir la réception de ACTION_UP par le système
                             return true
                         }
                         MotionEvent.ACTION_UP -> {
@@ -226,75 +224,103 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         rootLayout = frameContainer
         windowManager.addView(rootLayout, overlayLayoutParams)
 
-        var resizeJob: Job? = null
         serviceScope.launch {
-            container.islandViewModel.uiState.collect { state ->
-                val density = resources.displayMetrics.density
-                val shouldBeExpanded = state.isExpanded
+            container.islandViewModel.uiState.collect {
+                updateWindowLayoutForState()
+            }
+        }
+    }
 
-                val targetWindowWidth: Int
-                val targetWindowHeight: Int
-                val targetFlags: Int
+    private fun updateWindowLayoutForState() {
+        val container = (application as? PixelIslandApplication)?.appContainer ?: return
+        val state = container.islandViewModel.uiState.value
+        val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+        val density = resources.displayMetrics.density
+        val pillHeightPx = (40 * density).toInt()
 
-                when {
-                    state.isFaceUnlockActive -> {
-                        targetWindowWidth = (200 * density).toInt()
-                        targetWindowHeight = (80 * density).toInt()
-                        targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-                    }
-                    shouldBeExpanded -> {
-                        targetWindowWidth = (320 * density).toInt()
-                        targetWindowHeight = (216 * density).toInt()
-                        targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
-                    }
-                    state.isMusicActive -> {
-                        targetWindowWidth = (180 * density).toInt()
-                        targetWindowHeight = (40 * density).toInt()
-                        targetFlags = baseFlags
-                    }
-                    else -> {
-                        targetWindowWidth = 1
-                        targetWindowHeight = 1
-                        targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        if (isLandscape) {
+            // Option 1 : Masquage total de la Dynamic Island en mode paysage pour libérer l'écran
+            resizeJob?.cancel()
+            rootLayout?.visibility = android.view.View.GONE
+            overlayLayoutParams.width = 1
+            overlayLayoutParams.height = 1
+            overlayLayoutParams.flags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            rootLayout?.let { view ->
+                try {
+                    windowManager.updateViewLayout(view, overlayLayoutParams)
+                } catch (_: Exception) {}
+            }
+            return
+        }
+
+        // Mode vertical (portrait) : actif et centré sur le capteur photo physique
+        rootLayout?.visibility = android.view.View.VISIBLE
+        overlayLayoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        overlayLayoutParams.x = 0
+        overlayLayoutParams.y = (getCutoutCenterY() - (pillHeightPx / 2)).coerceAtLeast(0)
+
+        val shouldBeExpanded = state.isExpanded
+        val targetWindowWidth: Int
+        val targetWindowHeight: Int
+        val targetFlags: Int
+
+        when {
+            state.isFaceUnlockActive -> {
+                targetWindowWidth = (200 * density).toInt()
+                targetWindowHeight = (80 * density).toInt()
+                targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            }
+            shouldBeExpanded -> {
+                targetWindowWidth = (320 * density).toInt()
+                targetWindowHeight = (216 * density).toInt()
+                targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            }
+            state.isMusicActive -> {
+                targetWindowWidth = (180 * density).toInt()
+                targetWindowHeight = (40 * density).toInt()
+                targetFlags = baseFlags
+            }
+            else -> {
+                targetWindowWidth = 1
+                targetWindowHeight = 1
+                targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+            }
+        }
+
+        val sizeChanged = overlayLayoutParams.width != targetWindowWidth || overlayLayoutParams.height != targetWindowHeight
+        val flagsChanged = overlayLayoutParams.flags != targetFlags
+
+        if (sizeChanged || flagsChanged) {
+            resizeJob?.cancel()
+            val isGrowing = targetWindowWidth >= overlayLayoutParams.width && targetWindowHeight >= overlayLayoutParams.height
+
+            if (isGrowing) {
+                overlayLayoutParams.width = targetWindowWidth
+                overlayLayoutParams.height = targetWindowHeight
+                overlayLayoutParams.flags = targetFlags
+                rootLayout?.let { view ->
+                    try {
+                        windowManager.updateViewLayout(view, overlayLayoutParams)
+                    } catch (_: Exception) {}
+                }
+            } else {
+                if ((targetFlags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) != 0) {
+                    overlayLayoutParams.flags = targetFlags
+                    rootLayout?.let { view ->
+                        try {
+                            windowManager.updateViewLayout(view, overlayLayoutParams)
+                        } catch (_: Exception) {}
                     }
                 }
-
-                val sizeChanged = overlayLayoutParams.width != targetWindowWidth || overlayLayoutParams.height != targetWindowHeight
-                val flagsChanged = overlayLayoutParams.flags != targetFlags
-
-                if (sizeChanged || flagsChanged) {
-                    resizeJob?.cancel()
-                    val isGrowing = targetWindowWidth >= overlayLayoutParams.width && targetWindowHeight >= overlayLayoutParams.height
-
-                    if (isGrowing) {
-                        overlayLayoutParams.width = targetWindowWidth
-                        overlayLayoutParams.height = targetWindowHeight
-                        overlayLayoutParams.flags = targetFlags
-                        rootLayout?.let { view ->
-                            try {
-                                windowManager.updateViewLayout(view, overlayLayoutParams)
-                            } catch (_: Exception) {}
-                        }
-                    } else {
-                        if ((targetFlags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE) != 0) {
-                            overlayLayoutParams.flags = targetFlags
-                            rootLayout?.let { view ->
-                                try {
-                                    windowManager.updateViewLayout(view, overlayLayoutParams)
-                                } catch (_: Exception) {}
-                            }
-                        }
-                        resizeJob = serviceScope.launch {
-                            kotlinx.coroutines.delay(420)
-                            overlayLayoutParams.width = targetWindowWidth
-                            overlayLayoutParams.height = targetWindowHeight
-                            overlayLayoutParams.flags = targetFlags
-                            rootLayout?.let { view ->
-                                try {
-                                    windowManager.updateViewLayout(view, overlayLayoutParams)
-                                } catch (_: Exception) {}
-                            }
-                        }
+                resizeJob = serviceScope.launch {
+                    kotlinx.coroutines.delay(420)
+                    overlayLayoutParams.width = targetWindowWidth
+                    overlayLayoutParams.height = targetWindowHeight
+                    overlayLayoutParams.flags = targetFlags
+                    rootLayout?.let { view ->
+                        try {
+                            windowManager.updateViewLayout(view, overlayLayoutParams)
+                        } catch (_: Exception) {}
                     }
                 }
             }
@@ -303,20 +329,15 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val isLandscape = newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val density = resources.displayMetrics.density
-        val pillHeightPx = (40 * density).toInt()
-
-        // Maintien absolu en haut au centre pour que l'îlot reste à sa place naturelle même à l'horizontale
-        overlayLayoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        overlayLayoutParams.x = 0
-        overlayLayoutParams.y = if (isLandscape) 0 else (getCutoutCenterY() - (pillHeightPx / 2)).coerceAtLeast(0)
-        try {
-            rootLayout?.let { windowManager.updateViewLayout(it, overlayLayoutParams) }
-        } catch (_: Exception) {}
+        val container = (application as? PixelIslandApplication)?.appContainer
+        if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            container?.islandViewModel?.collapseIsland()
+        }
+        updateWindowLayoutForState()
     }
 
     private fun removeOverlayView() {
+        resizeJob?.cancel()
         rootLayout?.let {
             try {
                 windowManager.removeView(it)
