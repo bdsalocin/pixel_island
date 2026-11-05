@@ -402,8 +402,12 @@
       isExpanded = false;
       isHidden = false;
       triggerHaptic('light');
+
+      // Déploiement ralenti et fluide sur 650ms
+      island.style.transition = 'all 0.65s cubic-bezier(0.4, 0, 0.2, 1)';
       renderState();
 
+      // Cadenas qui s'ouvre
       setTimeout(() => {
         lockIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"></path>';
         lockIcon.className = 'w-5 h-5 text-emerald-400 spring-transition';
@@ -412,15 +416,17 @@
           faceText.className = 'text-xs font-semibold text-emerald-400';
         }
         triggerHaptic('success');
-      }, 700);
+      }, 750);
 
+      // Maintien affiché pendant 2,3 secondes pour bien apprécier la validation
       setTimeout(() => {
         isFaceActive = false;
+        island.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
         lockIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>';
         isMusicActive = previousMusic;
         isDualActive = previousDual;
         renderState();
-      }, 1600);
+      }, 2300);
     }
 
     let isPhoneLocked = false;
@@ -580,9 +586,9 @@
 
       // Dimensions & Contenu de l'île
       if (isHidden) {
-        // État Masqué au repos
-        island.style.width = '30px';
-        island.style.height = '30px';
+        // État Masqué au repos (parfaitement aligné sur le poinçon)
+        island.style.width = '24px';
+        island.style.height = '24px';
         island.style.borderRadius = '9999px';
         leftContent.classList.add('opacity-0');
         rightContent.classList.add('opacity-0');
@@ -590,17 +596,17 @@
         expandedContent.classList.add('opacity-0', 'hidden');
       } else if (isFaceActive) {
         // État Face ID étendu vers le bas sous le poinçon
-        island.style.width = '180px';
-        island.style.height = '68px';
-        island.style.borderRadius = '34px';
+        island.style.width = '190px';
+        island.style.height = '74px';
+        island.style.borderRadius = '37px';
         leftContent.classList.add('opacity-0');
         rightContent.classList.add('opacity-0');
         expandedContent.classList.add('opacity-0', 'hidden');
         faceContent.classList.remove('opacity-0');
       } else if (isExpanded) {
         // État Carte Agrandie
-        island.style.width = '296px';
-        island.style.height = '146px';
+        island.style.width = '310px';
+        island.style.height = '156px';
         island.style.borderRadius = '38px';
         leftContent.classList.add('opacity-0');
         rightContent.classList.add('opacity-0');
@@ -609,15 +615,15 @@
         setTimeout(() => expandedContent.classList.remove('opacity-0'), 150);
       } else if (isDualActive) {
         // État Multitâche scindé (Bulle principale musique réduite + satellite minuteur)
-        island.style.width = '125px';
-        island.style.height = '34px';
+        island.style.width = '130px';
+        island.style.height = '40px';
         island.style.borderRadius = '9999px';
         expandedContent.classList.add('opacity-0', 'hidden');
         faceContent.classList.add('opacity-0');
         leftContent.classList.remove('opacity-0');
         rightContent.classList.remove('opacity-0');
       } else if (isMusicActive) {
-        // État Musique Compact Standard (Hauteur augmentée à 40px pour un confort haut/bas)
+        // État Musique Compact Standard (Hauteur 40px, centrage absolu sur le poinçon)
         island.style.width = '180px';
         island.style.height = '40px';
         island.style.borderRadius = '9999px';
@@ -626,9 +632,9 @@
         leftContent.classList.remove('opacity-0');
         rightContent.classList.remove('opacity-0');
       } else {
-        // État Repos
-        island.style.width = '30px';
-        island.style.height = '30px';
+        // État Repos (centré et dissimulé derrière le poinçon)
+        island.style.width = '24px';
+        island.style.height = '24px';
         island.style.borderRadius = '9999px';
         leftContent.classList.add('opacity-0');
         rightContent.classList.add('opacity-0');

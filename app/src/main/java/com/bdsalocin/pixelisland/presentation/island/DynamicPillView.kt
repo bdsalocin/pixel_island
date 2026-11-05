@@ -1,6 +1,7 @@
 package com.bdsalocin.pixelisland.presentation.island
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bdsalocin.pixelisland.presentation.island.components.EqualizerBars
@@ -53,42 +55,64 @@ fun DynamicPillView(
     // Vérifie si une action requiert l'affichage de l'îlot
     val isVisible = state.isMusicActive || state.isFaceUnlockActive || state.isExpanded
 
-    // Dimensions cibles selon le mode
-    val targetWidth = when {
-        state.isFaceUnlockActive -> 190.dp
-        state.isExpanded -> 310.dp
-        state.isMusicActive -> 180.dp
-        else -> 0.dp // Dissimulé derrière le poinçon au repos
+    // Position verticale locale de l'axe du poinçon dans la fenêtre overlay (20dp sous le bord supérieur)
+    val punchHoleCenterY = 20.dp
+
+    // Calcul dynamique des bornes haut et bas pour garantir un centrage absolu sur le poinçon
+    val targetTop = when {
+        state.isExpanded -> 0.dp
+        state.isFaceUnlockActive -> 0.dp
+        state.isMusicActive -> 0.dp
+        else -> punchHoleCenterY // Se rétracte exactement au centre du poinçon
     }
 
-    // Hauteur verticale augmentée à 40dp pour un confort visuel optimal autour du poinçon
-    val targetHeight = when {
-        state.isFaceUnlockActive -> 74.dp
+    val targetBottom = when {
         state.isExpanded -> 156.dp
+        state.isFaceUnlockActive -> 74.dp
         state.isMusicActive -> 40.dp
-        else -> 0.dp // Dissimulé derrière le poinçon au repos
+        else -> punchHoleCenterY // Se rétracte exactement au centre du poinçon
     }
 
-    // Animation ressort fluide et douce pour la fermeture et l'ouverture
+    val targetWidth = when {
+        state.isExpanded -> 310.dp
+        state.isFaceUnlockActive -> 190.dp
+        state.isMusicActive -> 180.dp
+        else -> 0.dp // Se rétracte à 0 en largeur au centre
+    }
+
+    // Animation plus douce et plus lente lors du déverrouillage (650ms) pour apprécier le déploiement
+    val animDuration = when {
+        state.isFaceUnlockActive && isVisible -> 650
+        isVisible -> 450
+        else -> 380
+    }
+
+    val animSpec = tween<Dp>(
+        durationMillis = animDuration,
+        easing = FastOutSlowInEasing
+    )
+
+    val animatedTop by animateDpAsState(
+        targetValue = targetTop,
+        animationSpec = animSpec,
+        label = "PillTopAnimation"
+    )
+
+    val animatedBottom by animateDpAsState(
+        targetValue = targetBottom,
+        animationSpec = animSpec,
+        label = "PillBottomAnimation"
+    )
+
     val animatedWidth by animateDpAsState(
         targetValue = targetWidth,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
+        animationSpec = animSpec,
         label = "PillWidthAnimation"
     )
 
-    val animatedHeight by animateDpAsState(
-        targetValue = targetHeight,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "PillHeightAnimation"
-    )
+    val currentHeight = (animatedBottom - animatedTop).coerceAtLeast(0.dp)
 
-    // Rayon de courbure adapté pour respecter l'arrondi d'écran et la forme de la pilule
+    // Rayon de courbure adapté pour respecter la silhouette de pilule ou rectangle arrondi
     val cornerRadius by animateDpAsState(
         targetValue = when {
             state.isExpanded -> 38.dp
@@ -102,21 +126,21 @@ fun DynamicPillView(
         label = "PillCornerAnimation"
     )
 
-    // L'opacité du contenu s'estompe rapidement à la fermeture afin que la capsule noire
-    // se referme visiblement et proprement sur elle-même dans le poinçon
+    // L'opacité du contenu s'estompe rapidement à la fermeture (140ms) pour que la capsule noire
+    // se referme visiblement et sans bavure directement dans le poinçon
     val contentAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = 150),
+        animationSpec = tween(durationMillis = if (isVisible) 320 else 140),
         label = "ContentAlphaAnimation"
     )
 
-    // La capsule reste affichée tant que sa dimension physique est supérieure à 4dp
-    // pour garantir la visibilité complète de l'animation de fermeture
-    if (animatedWidth > 4.dp && animatedHeight > 4.dp) {
+    // Affichage actif tant que l'îlot a une dimension physique visible
+    if (animatedWidth > 0.5.dp && currentHeight > 0.5.dp) {
         Box(
             modifier = modifier
+                .padding(top = animatedTop)
                 .width(animatedWidth)
-                .height(animatedHeight)
+                .height(currentHeight)
                 .clip(RoundedCornerShape(cornerRadius))
                 .background(Color.Black)
                 .clickable(

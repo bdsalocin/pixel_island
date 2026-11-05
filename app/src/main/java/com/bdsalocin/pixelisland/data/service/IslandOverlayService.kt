@@ -72,10 +72,10 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
     private fun setupOverlayWindow() {
         // Centrage physique absolu sur le poinçon du Google Pixel 8 Pro
-        // Écran 1344 x 2992 px, caméra frontale centrée horizontalement à environ 30dp du haut.
+        // Écran 1344 x 2992 px, caméra frontale centrée horizontalement à exactement 28dp du haut (98px).
         val density = resources.displayMetrics.density
         val pillHeightPx = (40 * density).toInt()
-        var cutoutCenterY = (30 * density).toInt()
+        var cutoutCenterY = (28 * density).toInt()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
