@@ -161,6 +161,11 @@ fun DynamicPillView(
         context.getSystemService(Context.POWER_SERVICE) as? PowerManager
     }
 
+    var isDraggingCard by remember { mutableStateOf(false) }
+    var isOpeningCard by remember { mutableStateOf(false) }
+    var wasExpanded by remember { mutableStateOf(false) }
+    val velocityTracker = remember { VelocityTracker() }
+
     // Remise à zéro immédiate à l'extinction de l'écran pour éviter qu'une animation interrompue
     // par la coupure VSYNC ne laisse une boîte noire figée qui sursaute au prochain appui sur Power.
     DisposableEffect(context) {
@@ -200,11 +205,6 @@ fun DynamicPillView(
             } catch (_: Exception) {}
         }
     }
-
-    var isDraggingCard by remember { mutableStateOf(false) }
-    var isOpeningCard by remember { mutableStateOf(false) }
-    var wasExpanded by remember { mutableStateOf(false) }
-    val velocityTracker = remember { VelocityTracker() }
 
     // Animation fluide calibrée à 260 ms pour le repli de la carte sans queue asymptotique
     val collapseTweenSpec = tween<Float>(
