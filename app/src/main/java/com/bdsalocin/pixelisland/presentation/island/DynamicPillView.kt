@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import com.bdsalocin.pixelisland.domain.model.BiometricStatus
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
