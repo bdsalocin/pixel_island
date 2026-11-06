@@ -260,8 +260,8 @@ fun DynamicPillView(
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.HIDDEN -> {
-                                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
-                                        .togetherWith(fadeIn(animationSpec = tween(100)))
+                                    fadeIn(animationSpec = tween(100))
+                                        .togetherWith(fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 else -> {
