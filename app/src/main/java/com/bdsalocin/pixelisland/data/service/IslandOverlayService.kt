@@ -315,9 +315,22 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
+                        container.islandViewModel.onScreenOff()
                         val s = container.islandViewModel.uiState.value
                         if (!s.isMusicActive) {
                             composeView?.alpha = 0f
+                        }
+                        resizeJob?.cancel()
+                        pendingTargetWidth = null
+                        pendingTargetHeight = null
+                        val density = resources.displayMetrics.density
+                        val targetH = if (s.isMusicActive) (44 * density).toInt() else (104 * density).toInt()
+                        overlayLayoutParams.height = targetH
+                        overlayLayoutParams.flags = if (s.isMusicActive) baseFlags else (baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+                        rootLayout?.let { view ->
+                            try {
+                                windowManager.updateViewLayout(view, overlayLayoutParams)
+                            } catch (_: Exception) {}
                         }
                     }
                     Intent.ACTION_USER_PRESENT -> {

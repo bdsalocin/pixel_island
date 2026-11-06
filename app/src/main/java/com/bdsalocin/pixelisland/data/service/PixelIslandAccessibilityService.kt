@@ -1,8 +1,10 @@
 package com.bdsalocin.pixelisland.data.service
 
 import android.accessibilityservice.AccessibilityService
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.BroadcastReceiver
 import android.content.Context
+import com.bdsalocin.pixelisland.data.repository.BiometricRepositoryImpl
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
@@ -67,7 +69,37 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // Pixel Island utilise l'accessibilité pour l'élévation tactile de la Dynamic Island
+        val container = (application as? PixelIslandApplication)?.appContainer ?: return
+        val biometricRepo = container.biometricRepository as? BiometricRepositoryImpl ?: return
+
+        val pkg = event?.packageName?.toString() ?: ""
+        val cls = event?.className?.toString() ?: ""
+
+        when (event?.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                if (pkg == "com.android.systemui" || pkg.endsWith("systemui")) {
+                    if (cls.contains("biometrics", ignoreCase = true) ||
+                        cls.contains("AuthContainerView", ignoreCase = true) ||
+                        cls.contains("BiometricPrompt", ignoreCase = true)) {
+                        biometricRepo.onSystemBiometricPromptChanged(true)
+                    }
+                } else if (pkg.isNotEmpty() && !pkg.contains("pixelisland")) {
+                    biometricRepo.onSystemBiometricPromptChanged(false)
+                }
+            }
+            AccessibilityEvent.TYPE_VIEW_CLICKED -> {
+                if (pkg == "com.android.systemui" || pkg.endsWith("systemui")) {
+                    val text = event.text?.joinToString(" ") ?: ""
+                    val desc = event.contentDescription?.toString() ?: ""
+                    if (text.contains("cancel", ignoreCase = true) ||
+                        text.contains("annul", ignoreCase = true) ||
+                        desc.contains("cancel", ignoreCase = true) ||
+                        desc.contains("annul", ignoreCase = true)) {
+                        biometricRepo.onBiometricCancelled()
+                    }
+                }
+            }
+        }
     }
 
     override fun onInterrupt() {
@@ -78,6 +110,14 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         super.onServiceConnected()
         isAccessibilityServiceActive = true
         IslandOverlayService.removeOverlayIfPresent()
+
+        val info = serviceInfo ?: AccessibilityServiceInfo()
+        info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
+                AccessibilityEvent.TYPE_WINDOWS_CHANGED or
+                AccessibilityEvent.TYPE_VIEW_CLICKED
+        info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
+        info.flags = info.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        this.serviceInfo = info
 
         savedStateRegistryController.performRestore(null)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
@@ -298,9 +338,22 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
+                        container.islandViewModel.onScreenOff()
                         val s = container.islandViewModel.uiState.value
                         if (!s.isMusicActive) {
                             composeView?.alpha = 0f
+                        }
+                        resizeJob?.cancel()
+                        pendingTargetWidth = null
+                        pendingTargetHeight = null
+                        val density = resources.displayMetrics.density
+                        val targetH = if (s.isMusicActive) (44 * density).toInt() else (104 * density).toInt()
+                        overlayLayoutParams.height = targetH
+                        overlayLayoutParams.flags = if (s.isMusicActive) baseFlags else (baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+                        rootLayout?.let { view ->
+                            try {
+                                windowManager.updateViewLayout(view, overlayLayoutParams)
+                            } catch (_: Exception) {}
                         }
                     }
                     Intent.ACTION_USER_PRESENT -> {

@@ -166,14 +166,23 @@ fun DynamicPillView(
         val screenOffReceiver = object : BroadcastReceiver() {
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                    viewModel.onScreenOff()
                     val current = viewModel.uiState.value
-                    if (!current.isMusicActive) {
-                        coroutineScope.launch {
+                    coroutineScope.launch {
+                        if (current.isMusicActive) {
+                            pillTopAnim.snapTo(0f)
+                            pillBottomAnim.snapTo(40f)
+                            pillWidthAnim.snapTo(180f)
+                            pillCornerAnim.snapTo(20f)
+                        } else {
                             pillTopAnim.snapTo(0f)
                             pillBottomAnim.snapTo(34f)
                             pillWidthAnim.snapTo(0f)
                             pillCornerAnim.snapTo(20f)
                         }
+                        wasExpanded = false
+                        isDraggingCard = false
+                        isOpeningCard = false
                     }
                 }
             }
@@ -205,7 +214,7 @@ fun DynamicPillView(
     LaunchedEffect(targetTop.value, targetBottom.value, targetWidth.value, targetCornerRadius.value) {
         if (!isDraggingCard) {
             val isInteractive = powerManager?.isInteractive != false
-            if (!isInteractive && !isVisible) {
+            if (!isInteractive) {
                 pillTopAnim.snapTo(targetTop.value)
                 pillBottomAnim.snapTo(targetBottom.value)
                 pillWidthAnim.snapTo(targetWidth.value)
@@ -357,7 +366,7 @@ fun DynamicPillView(
                                 ) {
                                     FaceUnlockScanner(
                                         status = state.biometricStatus,
-                                        isUnlocked = state.isDeviceUnlocked
+                                        isUnlocked = (state.biometricStatus == BiometricStatus.SUCCESS)
                                     )
                                 }
                             }

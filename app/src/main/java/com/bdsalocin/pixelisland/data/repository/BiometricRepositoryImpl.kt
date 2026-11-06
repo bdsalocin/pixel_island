@@ -9,6 +9,8 @@ import android.hardware.display.DisplayManager
 import android.os.Build
 import android.os.SystemClock
 import android.view.Display
+import com.bdsalocin.pixelisland.data.camera.FrontCameraMonitor
+import com.bdsalocin.pixelisland.domain.biometric.InAppBiometricFilter
 import com.bdsalocin.pixelisland.domain.model.BiometricStatus
 import com.bdsalocin.pixelisland.domain.repository.BiometricRepository
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +37,33 @@ class BiometricRepositoryImpl(
     private var scanPollingJob: Job? = null
     private var scanTimeoutJob: Job? = null
     private var dismissJob: Job? = null
+    private var inAppJob: Job? = null
     private var currentStatus: BiometricStatus = BiometricStatus.IDLE
+
+    val inAppBiometricFilter = InAppBiometricFilter()
+    private val frontCameraMonitor = FrontCameraMonitor(context) { cameraId, inUse ->
+        inAppBiometricFilter.onFrontCameraAvailabilityChanged(cameraId, inUse)
+    }
+
+    init {
+        frontCameraMonitor.start()
+    }
+
+    fun onSystemBiometricPromptChanged(isShowing: Boolean) {
+        inAppBiometricFilter.onSystemBiometricPromptChanged(isShowing)
+    }
+
+    fun onBiometricCancelled() {
+        inAppBiometricFilter.onBiometricCancelled()
+    }
+
+    fun onBiometricSuccess() {
+        inAppBiometricFilter.onBiometricSuccess()
+    }
+
+    fun onBiometricFailed() {
+        inAppBiometricFilter.onBiometricFailed()
+    }
 
     override fun observeUnlockEvents(): Flow<BiometricStatus> = callbackFlow {
         val receiver = object : BroadcastReceiver() {
@@ -48,6 +76,11 @@ class BiometricRepositoryImpl(
                         scanTimeoutJob?.cancel()
 
                         val isKeyguardLocked = keyguardManager?.isKeyguardLocked == true
+                        inAppBiometricFilter.onScreenStateChanged(
+                            isKeyguardLocked = isKeyguardLocked,
+                            isScreenOn = true
+                        )
+
                         if (!isKeyguardLocked) {
                             // R1: Affichage du cadenas exclusivement si l'appareil est formellement verrouillé
                             currentStatus = BiometricStatus.IDLE
@@ -116,6 +149,10 @@ class BiometricRepositoryImpl(
                         wakeJob?.cancel()
                         scanPollingJob?.cancel()
                         scanTimeoutJob?.cancel()
+                        inAppBiometricFilter.onScreenStateChanged(
+                            isKeyguardLocked = false,
+                            isScreenOn = true
+                        )
                         triggerDismissal()
                     }
 
@@ -124,6 +161,7 @@ class BiometricRepositoryImpl(
                         scanPollingJob?.cancel()
                         scanTimeoutJob?.cancel()
                         dismissJob?.cancel()
+                        inAppBiometricFilter.onScreenOff()
                         currentStatus = BiometricStatus.IDLE
                         trySend(BiometricStatus.IDLE)
                     }
@@ -151,11 +189,22 @@ class BiometricRepositoryImpl(
             context.registerReceiver(receiver, filter)
         }
 
+        inAppJob = scope.launch {
+            inAppBiometricFilter.status.collect { inAppStatus ->
+                val isLocked = keyguardManager?.isKeyguardLocked == true
+                if (!isLocked) {
+                    currentStatus = inAppStatus
+                    trySend(inAppStatus)
+                }
+            }
+        }
+
         awaitClose {
             wakeJob?.cancel()
             scanPollingJob?.cancel()
             scanTimeoutJob?.cancel()
             dismissJob?.cancel()
+            inAppJob?.cancel()
             currentStatus = BiometricStatus.IDLE
             try {
                 context.unregisterReceiver(receiver)

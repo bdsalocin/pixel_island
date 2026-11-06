@@ -27,6 +27,11 @@ jobs:
           gradle-version: '8.5'
           cache-disabled: true
 
+      - name: Run Unit Tests
+        run: |
+          set -o pipefail
+          gradle :app:testDebugUnitTest --stacktrace 2>&1 | tee test_log.txt
+
       - name: Build Debug APK
         run: |
           set -o pipefail
