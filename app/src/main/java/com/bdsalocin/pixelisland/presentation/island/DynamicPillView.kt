@@ -47,6 +47,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -163,6 +165,9 @@ fun DynamicPillView(
     LaunchedEffect(state.isExpanded) {
         if (state.isExpanded) {
             isOpeningCard = true
+            snapshotFlow { pillBottomAnim.value }
+                .first { it >= 237.5f }
+            isOpeningCard = false
         } else {
             isOpeningCard = false
             if (isDraggingCard) {
@@ -172,12 +177,6 @@ fun DynamicPillView(
                 launch { pillWidthAnim.animateTo(targetWidth.value, pillSpringSpec) }
                 launch { pillCornerAnim.animateTo(targetCornerRadius.value, pillSpringSpec) }
             }
-        }
-    }
-
-    LaunchedEffect(pillBottomAnim.value, state.isExpanded) {
-        if (state.isExpanded && isOpeningCard && pillBottomAnim.value >= 237.5f) {
-            isOpeningCard = false
         }
     }
 
@@ -285,6 +284,7 @@ fun DynamicPillView(
                                                 onDragStart = {
                                                     velocityTracker.resetTracking()
                                                     isDraggingCard = true
+                                                    isOpeningCard = false
                                                 },
                                                 onDragEnd = {
                                                     val velocityY = velocityTracker.calculateVelocity().y
