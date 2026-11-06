@@ -11,6 +11,7 @@ import com.bdsalocin.pixelisland.domain.repository.BiometricRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -23,7 +24,7 @@ class BiometricRepositoryImpl(
     private val keyguardManager: KeyguardManager? = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
 ) : BiometricRepository {
 
-    private val scope = CoroutineScope(Dispatchers.Main.immediate)
+    private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
     private var scanPollingJob: Job? = null
     private var scanTimeoutJob: Job? = null
     private var dismissJob: Job? = null
@@ -46,17 +47,14 @@ class BiometricRepositoryImpl(
                             return
                         }
 
-                        // R2: À l'allumage de l'écran verrouillé, cadenas 96x96 dp fermé (ou ouvert si conteneur déjà déverrouillé)
-                        if (keyguardManager?.isDeviceLocked == false) {
-                            currentStatus = BiometricStatus.SUCCESS
-                            trySend(BiometricStatus.SUCCESS)
-                        } else {
-                            currentStatus = BiometricStatus.SCANNING
-                            trySend(BiometricStatus.SCANNING)
-                        }
+                        // R2: À l'allumage de l'écran verrouillé, toujours présenter le cadenas fermé (anse fermée)
+                        currentStatus = BiometricStatus.SCANNING
+                        trySend(BiometricStatus.SCANNING)
 
                         // Surveillance de l'authentification biométrique (reconnaissance faciale ou empreinte digitale)
                         scanPollingJob = scope.launch {
+                            // Bref délai de 150ms pour garantir la perception visuelle du cadenas fermé à l'allumage
+                            delay(150)
                             while (isActive) {
                                 val km = keyguardManager
                                 if (km == null || !km.isKeyguardLocked) {
@@ -106,12 +104,12 @@ class BiometricRepositoryImpl(
                 val wasSuccess = (currentStatus == BiometricStatus.SUCCESS)
                 dismissJob = scope.launch {
                     if (!wasSuccess) {
+                        // Si franchi directement sans attente sur l'écran verrouillé, afficher l'anse ouverte
                         currentStatus = BiometricStatus.SUCCESS
                         trySend(BiometricStatus.SUCCESS)
-                        delay(250)
-                    } else {
-                        delay(60)
+                        delay(120)
                     }
+                    // Rétraction immédiate vers le poinçon sans freeze artificiel
                     currentStatus = BiometricStatus.IDLE
                     trySend(BiometricStatus.IDLE)
                 }

@@ -13,6 +13,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -256,12 +257,37 @@ fun DynamicPillView(
                                 }
                                 initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.COMPACT_MUSIC -> {
                                     fadeIn(animationSpec = tween(140, delayMillis = 180, easing = FastOutSlowInEasing))
-                                        .togetherWith(fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing)))
+                                        .togetherWith(
+                                            scaleOut(
+                                                targetScale = 0.2f,
+                                                transformOrigin = TransformOrigin(0.5f, 0.21f),
+                                                animationSpec = tween(160, easing = FastOutSlowInEasing)
+                                            ) + fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                                        )
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.HIDDEN -> {
                                     fadeIn(animationSpec = tween(100))
-                                        .togetherWith(fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)))
+                                        .togetherWith(
+                                            scaleOut(
+                                                targetScale = 0.1f,
+                                                transformOrigin = TransformOrigin(0.5f, 0.21f),
+                                                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                                            ) + fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
+                                        )
+                                        .using(SizeTransform(clip = false) { _, _ -> snap() })
+                                }
+                                initialState == IslandStage.HIDDEN && targetState == IslandStage.FACE_UNLOCK -> {
+                                    (fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                                            scaleIn(
+                                                initialScale = 0.6f,
+                                                transformOrigin = TransformOrigin(0.5f, 0.21f),
+                                                animationSpec = spring(
+                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                    stiffness = Spring.StiffnessMedium
+                                                )
+                                            ))
+                                        .togetherWith(fadeOut(animationSpec = tween(80)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 else -> {
