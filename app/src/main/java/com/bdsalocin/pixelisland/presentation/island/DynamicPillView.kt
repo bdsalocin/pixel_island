@@ -107,21 +107,26 @@ fun DynamicPillView(
     val isVisible = state.isMusicActive || state.isFaceUnlockActive || state.isExpanded
 
     // Bornes supérieure et inférieure de l'îlot.
-    // Le bord supérieur reste ancré en permanence à 0dp pour supprimer tout saut vertical à l'allumage.
-    val targetTop = 0.dp
+    // Au repos, la pilule permanente style iPhone 18 (90dp x 36dp, centrée sur y=20dp) reste visible autour du poinçon.
+    val targetTop = when {
+        state.isFaceUnlockActive -> 0.dp
+        state.isExpanded -> 0.dp
+        state.isMusicActive -> 0.dp
+        else -> 2.dp
+    }
 
     val targetBottom = when {
         state.isFaceUnlockActive -> 96.dp  // Format carré arrondi type iPhone (96dp)
         state.isExpanded -> 238.dp        // Carte agrandie généreuse pour loger la grande pochette et le scrubbing
         state.isMusicActive -> 40.dp      // Hauteur compacte 40dp centrée sur le poinçon
-        else -> 34.dp                     // Repli sous la zone du poinçon caméra sans déplacer le bord haut (0dp)
+        else -> 38.dp                     // Hauteur permanente 36dp (de 2dp à 38dp, centrée à 20dp) style iPhone 18
     }
 
     val targetWidth = when {
         state.isFaceUnlockActive -> 96.dp  // Format carré 96dp sur 96dp
         state.isExpanded -> 384.dp         // Carte étendue allant presque sur les côtés de l'écran (~14dp de marge latérale)
         state.isMusicActive -> 180.dp     // 180dp pour la pilule musique compacte
-        else -> 0.dp                      // Rétraction à 0dp en largeur
+        else -> 90.dp                     // Pilule permanente compacte et affinée 90dp style iPhone 18
     }
 
     // Détermination de l'état d'affichage pour la transition douce
@@ -135,7 +140,8 @@ fun DynamicPillView(
     val targetCornerRadius = when {
         state.isFaceUnlockActive -> 28.dp
         state.isExpanded -> 40.dp
-        else -> 20.dp
+        state.isMusicActive -> 20.dp
+        else -> 18.dp
     }
 
     // Amortissement critique sans rebond (DampingRatioNoBouncy) pour une fluidité absolue à 120 FPS
@@ -181,10 +187,10 @@ fun DynamicPillView(
                             pillWidthAnim.snapTo(180f)
                             pillCornerAnim.snapTo(20f)
                         } else {
-                            pillTopAnim.snapTo(0f)
-                            pillBottomAnim.snapTo(34f)
-                            pillWidthAnim.snapTo(0f)
-                            pillCornerAnim.snapTo(20f)
+                            pillTopAnim.snapTo(2f)
+                            pillBottomAnim.snapTo(38f)
+                            pillWidthAnim.snapTo(90f)
+                            pillCornerAnim.snapTo(18f)
                         }
                         wasExpanded = false
                         isDraggingCard = false

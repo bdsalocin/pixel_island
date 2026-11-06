@@ -315,9 +315,11 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
             override fun onReceive(ctx: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_OFF -> {
+                        val before = container.islandViewModel.uiState.value
+                        val wasTall = before.isExpanded || before.isFaceUnlockActive
                         container.islandViewModel.onScreenOff()
                         val s = container.islandViewModel.uiState.value
-                        if (!s.isMusicActive) {
+                        if (wasTall && !s.isMusicActive) {
                             composeView?.alpha = 0f
                         }
                         resizeJob?.cancel()
@@ -333,6 +335,12 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
                             } catch (_: Exception) {}
                         }
                     }
+                    Intent.ACTION_SCREEN_ON -> {
+                        serviceScope.launch {
+                            kotlinx.coroutines.delay(55)
+                            composeView?.alpha = 1f
+                        }
+                    }
                     Intent.ACTION_USER_PRESENT -> {
                         composeView?.alpha = 1f
                     }
@@ -341,6 +349,7 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
         }
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_USER_PRESENT)
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -383,7 +392,8 @@ class IslandOverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner 
 
         // Mode vertical (portrait) : actif et centré sur le capteur photo physique
         rootLayout?.visibility = android.view.View.VISIBLE
-        if (state.isFaceUnlockActive || state.isMusicActive || state.isExpanded) {
+        val pm = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        if (pm?.isInteractive != false || state.isFaceUnlockActive || state.isMusicActive || state.isExpanded) {
             composeView?.alpha = 1f
         }
         overlayLayoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
