@@ -1,7 +1,10 @@
 package com.bdsalocin.pixelisland.data.service
 
 import android.accessibilityservice.AccessibilityService
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.graphics.PixelFormat
 import android.os.Build
@@ -54,6 +57,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
     private var resizeJob: Job? = null
     private var pendingTargetWidth: Int? = null
     private var pendingTargetHeight: Int? = null
+    private var cachedPortraitCutoutCenterY: Int? = null
+    private var screenReceiver: BroadcastReceiver? = null
 
     private val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -85,12 +90,20 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
     }
 
     private fun getCutoutCenterY(): Int {
+        val isPortrait = resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
+        if (isPortrait) {
+            cachedPortraitCutoutCenterY?.let { return it }
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {
                 val cutout = windowManager.maximumWindowMetrics.windowInsets.displayCutout
                 val topRect = cutout?.boundingRectTop
                 if (topRect != null && !topRect.isEmpty) {
-                    return topRect.centerY()
+                    val cy = topRect.centerY()
+                    if (isPortrait) {
+                        cachedPortraitCutoutCenterY = cy
+                    }
+                    return cy
                 }
             } catch (_: Exception) {}
         }
@@ -110,11 +123,13 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         val initialY = (cutoutCenterY - (pillHeightPx / 2)).coerceAtLeast(0)
 
         val initialFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        val stableWidthPx = (390 * density).toInt()
+        val idleHeightPx = (104 * density).toInt()
 
         // TYPE_ACCESSIBILITY_OVERLAY : Z-order supérieur à la barre d'état système, autorisant les clics sur le poinçon
         overlayLayoutParams = WindowManager.LayoutParams(
-            1,
-            1,
+            stableWidthPx,
+            idleHeightPx,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             initialFlags,
             PixelFormat.TRANSLUCENT
@@ -279,6 +294,32 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         rootLayout = frameContainer
         windowManager.addView(rootLayout, overlayLayoutParams)
 
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                when (intent?.action) {
+                    Intent.ACTION_SCREEN_OFF -> {
+                        val s = container.islandViewModel.uiState.value
+                        if (!s.isMusicActive) {
+                            composeView?.alpha = 0f
+                        }
+                    }
+                    Intent.ACTION_USER_PRESENT -> {
+                        composeView?.alpha = 1f
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(receiver, filter)
+        }
+        screenReceiver = receiver
+
         serviceScope.launch {
             container.islandViewModel.uiState.collect {
                 updateWindowLayoutForState()
@@ -312,6 +353,9 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
         // Mode vertical (portrait) : actif et centré sur le capteur photo physique
         rootLayout?.visibility = android.view.View.VISIBLE
+        if (state.isFaceUnlockActive || state.isMusicActive || state.isExpanded) {
+            composeView?.alpha = 1f
+        }
         overlayLayoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         overlayLayoutParams.x = 0
         overlayLayoutParams.y = (getCutoutCenterY() - (pillHeightPx / 2)).coerceAtLeast(0)
@@ -323,8 +367,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
         when {
             state.isFaceUnlockActive -> {
-                targetWindowWidth = (100 * density).toInt()
-                targetWindowHeight = (100 * density).toInt()
+                targetWindowWidth = (390 * density).toInt()
+                targetWindowHeight = (104 * density).toInt()
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
             shouldBeExpanded -> {
@@ -338,8 +382,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
                 targetFlags = baseFlags
             }
             else -> {
-                targetWindowWidth = 1
-                targetWindowHeight = 1
+                targetWindowWidth = (390 * density).toInt()
+                targetWindowHeight = (104 * density).toInt()
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
         }
@@ -423,7 +467,7 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         updateWindowLayoutForState()
     }
 
-    override fun onUnbind(intent: android.content.Intent?): Boolean {
+    override fun onUnbind(intent: Intent?): Boolean {
         isAccessibilityServiceActive = false
         cleanUp()
         return super.onUnbind(intent)
@@ -439,6 +483,12 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         resizeJob?.cancel()
         pendingTargetWidth = null
         pendingTargetHeight = null
+        screenReceiver?.let {
+            try {
+                unregisterReceiver(it)
+            } catch (_: Exception) {}
+            screenReceiver = null
+        }
         serviceScope.cancel()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)

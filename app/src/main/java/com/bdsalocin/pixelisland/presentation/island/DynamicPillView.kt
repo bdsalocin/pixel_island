@@ -36,10 +36,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.os.PowerManager
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -98,19 +106,14 @@ fun DynamicPillView(
     val isVisible = state.isMusicActive || state.isFaceUnlockActive || state.isExpanded
 
     // Bornes supérieure et inférieure de l'îlot.
-    // Le bord supérieur reste ancré à 0dp pour supprimer tout saut vertical.
-    val targetTop = when {
-        state.isFaceUnlockActive -> 0.dp
-        state.isExpanded -> 0.dp
-        state.isMusicActive -> 0.dp
-        else -> 12.dp // Repli vers le centre du poinçon (y=20dp)
-    }
+    // Le bord supérieur reste ancré en permanence à 0dp pour supprimer tout saut vertical à l'allumage.
+    val targetTop = 0.dp
 
     val targetBottom = when {
         state.isFaceUnlockActive -> 96.dp  // Format carré arrondi type iPhone (96dp)
         state.isExpanded -> 238.dp        // Carte agrandie généreuse pour loger la grande pochette et le scrubbing
         state.isMusicActive -> 40.dp      // Hauteur compacte 40dp centrée sur le poinçon
-        else -> 28.dp                     // Repli vers le centre du poinçon (y=20dp)
+        else -> 34.dp                     // Repli sous la zone du poinçon caméra sans déplacer le bord haut (0dp)
     }
 
     val targetWidth = when {
@@ -139,6 +142,10 @@ fun DynamicPillView(
         dampingRatio = Spring.DampingRatioNoBouncy,
         stiffness = 450f
     )
+    val faceOpenSpringSpec = spring<Float>(
+        dampingRatio = Spring.DampingRatioNoBouncy,
+        stiffness = 380f
+    )
 
     val pillTopAnim = remember { Animatable(targetTop.value) }
     val pillBottomAnim = remember { Animatable(targetBottom.value) }
@@ -149,6 +156,40 @@ fun DynamicPillView(
     val context = LocalContext.current
     val view = LocalView.current
     val coroutineScope = rememberCoroutineScope()
+    val powerManager = remember(context) {
+        context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+    }
+
+    // Remise à zéro immédiate à l'extinction de l'écran pour éviter qu'une animation interrompue
+    // par la coupure VSYNC ne laisse une boîte noire figée qui sursaute au prochain appui sur Power.
+    DisposableEffect(context) {
+        val screenOffReceiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context?, intent: Intent?) {
+                if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                    val current = viewModel.uiState.value
+                    if (!current.isMusicActive) {
+                        coroutineScope.launch {
+                            pillTopAnim.snapTo(0f)
+                            pillBottomAnim.snapTo(34f)
+                            pillWidthAnim.snapTo(0f)
+                            pillCornerAnim.snapTo(20f)
+                        }
+                    }
+                }
+            }
+        }
+        val filter = IntentFilter(Intent.ACTION_SCREEN_OFF)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(screenOffReceiver, filter, Context.RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(screenOffReceiver, filter)
+        }
+        onDispose {
+            try {
+                context.unregisterReceiver(screenOffReceiver)
+            } catch (_: Exception) {}
+        }
+    }
 
     var isDraggingCard by remember { mutableStateOf(false) }
     var isOpeningCard by remember { mutableStateOf(false) }
@@ -163,9 +204,22 @@ fun DynamicPillView(
 
     LaunchedEffect(targetTop.value, targetBottom.value, targetWidth.value, targetCornerRadius.value) {
         if (!isDraggingCard) {
+            val isInteractive = powerManager?.isInteractive != false
+            if (!isInteractive && !isVisible) {
+                pillTopAnim.snapTo(targetTop.value)
+                pillBottomAnim.snapTo(targetBottom.value)
+                pillWidthAnim.snapTo(targetWidth.value)
+                pillCornerAnim.snapTo(targetCornerRadius.value)
+                wasExpanded = false
+                return@LaunchedEffect
+            }
             val isCollapsingCard = (wasExpanded || pillWidthAnim.value > 180.5f) &&
                     targetWidth.value == 180f && targetBottom.value == 40f
-            val animSpec = if (isCollapsingCard) collapseTweenSpec else pillSpringSpec
+            val animSpec = when {
+                isCollapsingCard -> collapseTweenSpec
+                state.isFaceUnlockActive -> faceOpenSpringSpec
+                else -> pillSpringSpec
+            }
             launch { pillTopAnim.animateTo(targetTop.value, animSpec) }
             launch { pillBottomAnim.animateTo(targetBottom.value, animSpec) }
             launch { pillWidthAnim.animateTo(targetWidth.value, animSpec) }
@@ -278,15 +332,7 @@ fun DynamicPillView(
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 targetState == IslandStage.FACE_UNLOCK -> {
-                                    (fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                                            scaleIn(
-                                                initialScale = 0.6f,
-                                                transformOrigin = TransformOrigin(0.5f, 0.21f),
-                                                animationSpec = spring(
-                                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                    stiffness = Spring.StiffnessMedium
-                                                )
-                                            ))
+                                    fadeIn(animationSpec = tween(150, delayMillis = 35, easing = FastOutSlowInEasing))
                                         .togetherWith(fadeOut(animationSpec = tween(80)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
@@ -300,13 +346,13 @@ fun DynamicPillView(
                         label = "IslandContentTransition"
                     ) { stage ->
                         when (stage) {
-                            // Vue Déverrouillage Visage (Carré arrondi type iPhone avec cadenas vert abaissé sous le poinçon)
+                            // Vue Déverrouillage Visage (Carré arrondi 96dp fixe sans rebond ni compression interne)
                             IslandStage.FACE_UNLOCK -> {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(96.dp)
-                                        .padding(top = 40.dp, bottom = 12.dp),
+                                        .wrapContentSize(align = Alignment.TopCenter, unbounded = true)
+                                        .size(96.dp)
+                                        .padding(top = 34.dp, bottom = 10.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     FaceUnlockScanner(

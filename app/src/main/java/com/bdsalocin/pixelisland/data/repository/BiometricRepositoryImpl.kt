@@ -5,7 +5,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.display.DisplayManager
 import android.os.Build
+import android.os.SystemClock
+import android.view.Display
 import com.bdsalocin.pixelisland.domain.model.BiometricStatus
 import com.bdsalocin.pixelisland.domain.repository.BiometricRepository
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +27,11 @@ class BiometricRepositoryImpl(
     private val keyguardManager: KeyguardManager? = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
 ) : BiometricRepository {
 
+    private val displayManager: DisplayManager? =
+        context.getSystemService(Context.DISPLAY_SERVICE) as? DisplayManager
+
     private val scope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob())
+    private var wakeJob: Job? = null
     private var scanPollingJob: Job? = null
     private var scanTimeoutJob: Job? = null
     private var dismissJob: Job? = null
@@ -35,6 +42,7 @@ class BiometricRepositoryImpl(
             override fun onReceive(context: Context?, intent: Intent?) {
                 when (intent?.action) {
                     Intent.ACTION_SCREEN_ON -> {
+                        wakeJob?.cancel()
                         dismissJob?.cancel()
                         scanPollingJob?.cancel()
                         scanTimeoutJob?.cancel()
@@ -47,49 +55,72 @@ class BiometricRepositoryImpl(
                             return
                         }
 
-                        // R2: À l'allumage de l'écran verrouillé, toujours présenter le cadenas fermé (anse fermée)
-                        currentStatus = BiometricStatus.SCANNING
-                        trySend(BiometricStatus.SCANNING)
-
-                        // Surveillance de l'authentification biométrique (reconnaissance faciale ou empreinte digitale)
-                        scanPollingJob = scope.launch {
-                            // Bref délai de 150ms pour garantir la perception visuelle du cadenas fermé à l'allumage
-                            delay(150)
-                            while (isActive) {
-                                val km = keyguardManager
-                                if (km == null || !km.isKeyguardLocked) {
-                                    // Disparition du Keyguard -> passage vers le bureau
-                                    triggerDismissal()
+                        // Attendre que la dalle OLED soit physiquement allumée (Display.STATE_ON)
+                        // et que le pipeline VSYNC 120 Hz soit actif avant de déployer le carré noir,
+                        // afin d'éliminer tout sursaut lié au réveil matériel par le bouton Power.
+                        wakeJob = scope.launch {
+                            val waitStart = SystemClock.uptimeMillis()
+                            while (isActive && (SystemClock.uptimeMillis() - waitStart) < 240L) {
+                                val displayState = displayManager?.getDisplay(Display.DEFAULT_DISPLAY)?.state
+                                if (displayState == Display.STATE_ON) {
                                     break
                                 }
-
-                                if (!km.isDeviceLocked && currentStatus != BiometricStatus.SUCCESS) {
-                                    // Authentification réussie: l'anse s'ouvre avec animation élastique
-                                    scanTimeoutJob?.cancel()
-                                    currentStatus = BiometricStatus.SUCCESS
-                                    trySend(BiometricStatus.SUCCESS)
-                                    // Reste visible en position ouverte en attendant le balayage vers le haut
-                                }
-                                delay(50)
+                                delay(16)
                             }
-                        }
+                            // Laisser quelques trames VSYNC (65ms) stabiliser le rafraîchissement de l'écran
+                            delay(65)
 
-                        scanTimeoutJob = scope.launch {
-                            delay(4000)
-                            if (currentStatus == BiometricStatus.SCANNING) {
+                            val kmInitial = keyguardManager
+                            if (kmInitial == null || !kmInitial.isKeyguardLocked) {
                                 currentStatus = BiometricStatus.IDLE
                                 trySend(BiometricStatus.IDLE)
+                                return@launch
+                            }
+
+                            // R2: Déploiement fluide à 120 FPS du carré noir 96dp avec le cadenas fermé
+                            currentStatus = BiometricStatus.SCANNING
+                            trySend(BiometricStatus.SCANNING)
+
+                            // Surveillance de l'authentification biométrique (visage Google ou empreinte)
+                            scanPollingJob = scope.launch {
+                                // Laisser le carré noir finir son ouverture (~240ms) et marquer une courte
+                                // pause stable avec le cadenas verrouillé avant d'animer l'ouverture en direct
+                                delay(420)
+                                while (isActive) {
+                                    val km = keyguardManager
+                                    if (km == null || !km.isKeyguardLocked) {
+                                        triggerDismissal()
+                                        break
+                                    }
+
+                                    if (!km.isDeviceLocked && currentStatus != BiometricStatus.SUCCESS) {
+                                        scanTimeoutJob?.cancel()
+                                        currentStatus = BiometricStatus.SUCCESS
+                                        trySend(BiometricStatus.SUCCESS)
+                                    }
+                                    delay(40)
+                                }
+                            }
+
+                            scanTimeoutJob = scope.launch {
+                                delay(4500)
+                                if (currentStatus == BiometricStatus.SCANNING) {
+                                    currentStatus = BiometricStatus.IDLE
+                                    trySend(BiometricStatus.IDLE)
+                                }
                             }
                         }
                     }
 
                     Intent.ACTION_USER_PRESENT -> {
+                        wakeJob?.cancel()
                         scanPollingJob?.cancel()
                         scanTimeoutJob?.cancel()
                         triggerDismissal()
                     }
 
                     Intent.ACTION_SCREEN_OFF -> {
+                        wakeJob?.cancel()
                         scanPollingJob?.cancel()
                         scanTimeoutJob?.cancel()
                         dismissJob?.cancel()
@@ -102,7 +133,6 @@ class BiometricRepositoryImpl(
             private fun triggerDismissal() {
                 if (dismissJob?.isActive == true || currentStatus == BiometricStatus.IDLE) return
                 dismissJob = scope.launch {
-                    // Rétraction immédiate vers le poinçon sans freeze artificiel sur le bureau
                     currentStatus = BiometricStatus.IDLE
                     trySend(BiometricStatus.IDLE)
                 }
@@ -122,6 +152,7 @@ class BiometricRepositoryImpl(
         }
 
         awaitClose {
+            wakeJob?.cancel()
             scanPollingJob?.cancel()
             scanTimeoutJob?.cancel()
             dismissJob?.cancel()
