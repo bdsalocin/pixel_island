@@ -72,7 +72,7 @@ private fun AnimatedPadlock(
     modifier: Modifier = Modifier
 ) {
     val shackleOffset by animateDpAsState(
-        targetValue = if (isUnlocked) (-4).dp else 0.dp,
+        targetValue = if (isUnlocked) (-5).dp else 0.dp,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
@@ -90,7 +90,7 @@ private fun AnimatedPadlock(
     )
 
     Box(
-        modifier = modifier.size(26.dp),
+        modifier = modifier.size(32.dp),
         contentAlignment = Alignment.Center
     ) {
         // Anse du cadenas
@@ -103,14 +103,14 @@ private fun AnimatedPadlock(
                     rotationZ = shackleRotation
                     transformOrigin = TransformOrigin(0.2f, 1f)
                 }
-                .width(13.dp)
-                .height(11.dp)
+                .width(16.dp)
+                .height(14.dp)
                 .border(
-                    width = 2.dp,
+                    width = 2.5.dp,
                     color = color,
                     shape = RoundedCornerShape(
-                        topStart = 7.dp,
-                        topEnd = 7.dp,
+                        topStart = 8.dp,
+                        topEnd = 8.dp,
                         bottomStart = 0.dp,
                         bottomEnd = 0.dp
                     )
@@ -122,16 +122,16 @@ private fun AnimatedPadlock(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 2.dp)
-                .width(17.dp)
-                .height(13.dp)
-                .clip(RoundedCornerShape(3.5.dp))
+                .width(21.dp)
+                .height(16.dp)
+                .clip(RoundedCornerShape(4.dp))
                 .background(color),
             contentAlignment = Alignment.Center
         ) {
             // Trou de serrure
             Box(
                 modifier = Modifier
-                    .size(3.dp)
+                    .size(4.dp)
                     .clip(CircleShape)
                     .background(Color.Black)
             )

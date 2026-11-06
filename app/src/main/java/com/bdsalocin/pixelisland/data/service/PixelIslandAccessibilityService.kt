@@ -319,8 +319,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
         when {
             state.isFaceUnlockActive -> {
-                targetWindowWidth = (84 * density).toInt()
-                targetWindowHeight = (84 * density).toInt()
+                targetWindowWidth = (100 * density).toInt()
+                targetWindowHeight = (100 * density).toInt()
                 targetFlags = baseFlags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
             }
             shouldBeExpanded -> {
@@ -371,7 +371,7 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
                 }
                 resizeJob?.cancel()
                 resizeJob = serviceScope.launch {
-                    kotlinx.coroutines.delay(280)
+                    kotlinx.coroutines.delay(320)
                     overlayLayoutParams.width = targetWindowWidth
                     overlayLayoutParams.height = targetWindowHeight
                     overlayLayoutParams.flags = targetFlags

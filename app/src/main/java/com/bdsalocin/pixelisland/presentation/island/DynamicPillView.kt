@@ -103,14 +103,14 @@ fun DynamicPillView(
     }
 
     val targetBottom = when {
-        state.isFaceUnlockActive -> 80.dp  // Format carré arrondi type iPhone (80dp)
+        state.isFaceUnlockActive -> 96.dp  // Format carré arrondi type iPhone (96dp)
         state.isExpanded -> 238.dp        // Carte agrandie généreuse pour loger la grande pochette et le scrubbing
         state.isMusicActive -> 40.dp      // Hauteur compacte 40dp centrée sur le poinçon
         else -> 28.dp                     // Repli vers le centre du poinçon (y=20dp)
     }
 
     val targetWidth = when {
-        state.isFaceUnlockActive -> 80.dp  // Format carré 80dp sur 80dp
+        state.isFaceUnlockActive -> 96.dp  // Format carré 96dp sur 96dp
         state.isExpanded -> 384.dp         // Carte étendue allant presque sur les côtés de l'écran (~14dp de marge latérale)
         state.isMusicActive -> 180.dp     // 180dp pour la pilule musique compacte
         else -> 0.dp                      // Rétraction à 0dp en largeur
@@ -126,8 +126,8 @@ fun DynamicPillView(
 
     val targetCornerRadius = when {
         state.isExpanded -> 40.dp
-        state.isFaceUnlockActive -> 24.dp
-        else -> 9999.dp
+        state.isFaceUnlockActive -> 28.dp
+        else -> 20.dp
     }
 
     // Amortissement critique sans rebond (DampingRatioNoBouncy) pour une fluidité absolue à 120 FPS
@@ -206,19 +206,21 @@ fun DynamicPillView(
                             when {
                                 initialState == IslandStage.COMPACT_MUSIC && targetState == IslandStage.EXPANDED_CARD -> {
                                     (fadeIn(animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.94f, animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)))
+                                            scaleIn(
+                                                initialScale = 0.94f,
+                                                animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing),
+                                                transformOrigin = TransformOrigin(0.5f, 0f)
+                                            ))
                                         .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 initialState == IslandStage.EXPANDED_CARD && targetState == IslandStage.COMPACT_MUSIC -> {
-                                    (fadeIn(animationSpec = tween(160, delayMillis = 50, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.92f, animationSpec = tween(160, delayMillis = 50, easing = FastOutSlowInEasing)))
+                                    fadeIn(animationSpec = tween(100, delayMillis = 220, easing = FastOutSlowInEasing))
                                         .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.COMPACT_MUSIC -> {
-                                    (fadeIn(animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)) +
-                                            scaleIn(initialScale = 0.92f, animationSpec = tween(180, delayMillis = 50, easing = FastOutSlowInEasing)))
+                                    fadeIn(animationSpec = tween(100, delayMillis = 180, easing = FastOutSlowInEasing))
                                         .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
@@ -237,7 +239,7 @@ fun DynamicPillView(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(80.dp)
+                                        .height(96.dp)
                                         .padding(top = 40.dp, bottom = 12.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -251,8 +253,8 @@ fun DynamicPillView(
                             IslandStage.EXPANDED_CARD -> {
                                 val track = state.mediaTrack
                                 val dragFraction = ((238f - pillBottomAnim.value) / 198f).coerceIn(0f, 1f)
-                                val dragContentScale = (1f - dragFraction * 0.12f).coerceIn(0.88f, 1f)
-                                val dragContentAlpha = (1f - dragFraction * 0.45f).coerceIn(0f, 1f)
+                                val dragContentScale = if (isDraggingCard) (1f - dragFraction * 0.12f).coerceIn(0.88f, 1f) else 1f
+                                val dragContentAlpha = if (isDraggingCard) (1f - dragFraction * 0.45f).coerceIn(0f, 1f) else 1f
 
                                 Column(
                                     modifier = Modifier
@@ -351,7 +353,7 @@ fun DynamicPillView(
                                                     val newBottom = (pillBottomAnim.value + dragDp).coerceIn(40f, 238f)
                                                     val progress = ((238f - newBottom) / 198f).coerceIn(0f, 1f)
                                                     val newWidth = 384f - (204f * progress)
-                                                    val newCorner = 40f + (50f * progress)
+                                                    val newCorner = 40f - (20f * progress)
                                                     coroutineScope.launch {
                                                         pillBottomAnim.snapTo(newBottom)
                                                         pillWidthAnim.snapTo(newWidth)
