@@ -255,7 +255,7 @@ fun DynamicPillView(
                                         .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
-                                initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.COMPACT_MUSIC -> {
+                                initialState == IslandStage.FACE_UNLOCK && (targetState == IslandStage.COMPACT_MUSIC || targetState == IslandStage.EXPANDED_CARD) -> {
                                     fadeIn(animationSpec = tween(140, delayMillis = 180, easing = FastOutSlowInEasing))
                                         .togetherWith(
                                             scaleOut(
@@ -277,7 +277,7 @@ fun DynamicPillView(
                                         )
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
-                                initialState == IslandStage.HIDDEN && targetState == IslandStage.FACE_UNLOCK -> {
+                                targetState == IslandStage.FACE_UNLOCK -> {
                                     (fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
                                             scaleIn(
                                                 initialScale = 0.6f,

@@ -94,7 +94,7 @@ class IslandViewModel(
         viewModelScope.launch {
             observeUnlockStateUseCase().collect { status ->
                 if (status != BiometricStatus.IDLE && _uiState.value.biometricStatus == BiometricStatus.IDLE) {
-                    val isLocked = keyguardManager?.isKeyguardLocked ?: true
+                    val isLocked = keyguardManager?.isKeyguardLocked == true
                     if (!isLocked) {
                         // R1: L'affichage du cadenas ne doit s'activer que si l'appareil est formellement verrouillé
                         return@collect

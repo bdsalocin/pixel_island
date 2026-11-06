@@ -100,7 +100,7 @@ class BiometricRepositoryImpl(
             }
 
             private fun triggerDismissal() {
-                if (dismissJob?.isActive == true) return
+                if (dismissJob?.isActive == true || currentStatus == BiometricStatus.IDLE) return
                 val wasSuccess = (currentStatus == BiometricStatus.SUCCESS)
                 dismissJob = scope.launch {
                     if (!wasSuccess) {
@@ -132,6 +132,7 @@ class BiometricRepositoryImpl(
             scanPollingJob?.cancel()
             scanTimeoutJob?.cancel()
             dismissJob?.cancel()
+            currentStatus = BiometricStatus.IDLE
             try {
                 context.unregisterReceiver(receiver)
             } catch (_: Exception) {}
