@@ -169,7 +169,11 @@ fun DynamicPillView(
             launch { pillBottomAnim.animateTo(targetBottom.value, animSpec) }
             launch { pillWidthAnim.animateTo(targetWidth.value, animSpec) }
             launch { pillCornerAnim.animateTo(targetCornerRadius.value, animSpec) }
-            wasExpanded = false
+            if (state.isExpanded) {
+                wasExpanded = true
+            } else {
+                wasExpanded = false
+            }
         }
     }
 
