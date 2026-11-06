@@ -162,16 +162,14 @@ fun DynamicPillView(
 
     LaunchedEffect(targetTop.value, targetBottom.value, targetWidth.value, targetCornerRadius.value) {
         if (!isDraggingCard) {
-            val isCollapsingCard = (wasExpanded || pillWidthAnim.value > 200f) &&
+            val isCollapsingCard = (wasExpanded || pillWidthAnim.value > 180.5f) &&
                     targetWidth.value == 180f && targetBottom.value == 40f
             val animSpec = if (isCollapsingCard) collapseTweenSpec else pillSpringSpec
             launch { pillTopAnim.animateTo(targetTop.value, animSpec) }
             launch { pillBottomAnim.animateTo(targetBottom.value, animSpec) }
             launch { pillWidthAnim.animateTo(targetWidth.value, animSpec) }
             launch { pillCornerAnim.animateTo(targetCornerRadius.value, animSpec) }
-            if (isCollapsingCard) {
-                wasExpanded = false
-            }
+            wasExpanded = false
         }
     }
 
@@ -186,15 +184,15 @@ fun DynamicPillView(
             isOpeningCard = false
             if (isDraggingCard) {
                 isDraggingCard = false
-                val isCollapsingCard = (wasExpanded || pillWidthAnim.value > 200f) &&
+                val isCollapsingCard = (wasExpanded || pillWidthAnim.value > 180.5f) &&
                         targetWidth.value == 180f && targetBottom.value == 40f
                 val animSpec = if (isCollapsingCard) collapseTweenSpec else pillSpringSpec
                 launch { pillTopAnim.animateTo(targetTop.value, animSpec) }
                 launch { pillBottomAnim.animateTo(targetBottom.value, animSpec) }
                 launch { pillWidthAnim.animateTo(targetWidth.value, animSpec) }
                 launch { pillCornerAnim.animateTo(targetCornerRadius.value, animSpec) }
+                wasExpanded = false
             }
-            wasExpanded = false
         }
     }
 
