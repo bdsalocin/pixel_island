@@ -28,6 +28,8 @@ class InAppBiometricFilter(
         private set
     var isFailed: Boolean = false
         private set
+    var isFaceTimeout: Boolean = false
+        private set
 
     private val _status = MutableStateFlow(BiometricStatus.IDLE)
     val status: StateFlow<BiometricStatus> = _status.asStateFlow()
@@ -35,7 +37,7 @@ class InAppBiometricFilter(
     private var dwellJob: Job? = null
 
     private fun evaluateTrigger() {
-        if (!isKeyguardLocked && isScreenOn && isSystemPromptShowing && isFrontCameraInUse && !isCancelled && !isFailed) {
+        if (!isKeyguardLocked && isScreenOn && isSystemPromptShowing && isFrontCameraInUse && !isCancelled && !isFailed && !isFaceTimeout) {
             if (_status.value != BiometricStatus.SCANNING && _status.value != BiometricStatus.SUCCESS) {
                 dwellJob?.cancel()
                 _status.value = BiometricStatus.SCANNING
@@ -44,15 +46,36 @@ class InAppBiometricFilter(
     }
 
     fun onSystemBiometricPromptChanged(isShowing: Boolean) {
+        val wasShowing = isSystemPromptShowing
         isSystemPromptShowing = isShowing
         if (isShowing) {
             isCancelled = false
             isFailed = false
+            isFaceTimeout = false
             evaluateTrigger()
         } else {
-            if (_status.value == BiometricStatus.SCANNING) {
+            if (_status.value == BiometricStatus.SUCCESS) {
+                // Keep active SUCCESS dwell period running
+            } else if (wasShowing) {
+                val wasScanningOrCameraInUse = (_status.value == BiometricStatus.SCANNING) || isFrontCameraInUse
+                val isGenuineSuccess = wasScanningOrCameraInUse && !isCancelled && !isFailed && !isFaceTimeout
+
+                if (isGenuineSuccess) {
+                    onBiometricSuccess()
+                } else {
+                    dwellJob?.cancel()
+                    _status.value = BiometricStatus.IDLE
+                }
+            } else {
+                dwellJob?.cancel()
                 _status.value = BiometricStatus.IDLE
             }
+
+            // Reset hardware usage and transient flags for consecutive requests
+            isFrontCameraInUse = false
+            isCancelled = false
+            isFailed = false
+            isFaceTimeout = false
         }
     }
 
@@ -60,12 +83,24 @@ class InAppBiometricFilter(
         val wasInUse = isFrontCameraInUse
         isFrontCameraInUse = inUse
         if (inUse) {
+            isFaceTimeout = false
             evaluateTrigger()
         } else {
-            if (wasInUse && _status.value == BiometricStatus.SCANNING) {
-                if (isSystemPromptShowing && !isCancelled && !isFailed) {
-                    onBiometricSuccess()
-                } else {
+            if (_status.value == BiometricStatus.SUCCESS) {
+                return
+            }
+            if (wasInUse && isSystemPromptShowing) {
+                // Camera cutoff while prompt is still visible (isSystemPromptShowing == true)
+                // must NEVER be treated as biometric success.
+                // On Pixel 8 Pro, when face recognition times out (~5s) or fails, the front camera shuts down
+                // while the prompt remains open for fingerprint fallback.
+                // This transitions directly to IDLE (closed padlock) without triggering onBiometricSuccess().
+                isFaceTimeout = true
+                dwellJob?.cancel()
+                _status.value = BiometricStatus.IDLE
+            } else {
+                if (_status.value == BiometricStatus.SCANNING) {
+                    dwellJob?.cancel()
                     _status.value = BiometricStatus.IDLE
                 }
             }
@@ -94,7 +129,7 @@ class InAppBiometricFilter(
     }
 
     fun onBiometricSuccess() {
-        if (_status.value == BiometricStatus.SCANNING) {
+        if (!isCancelled && !isFailed && !isFaceTimeout && (_status.value == BiometricStatus.SCANNING || isSystemPromptShowing)) {
             dwellJob?.cancel()
             _status.value = BiometricStatus.SUCCESS
             dwellJob = coroutineScope.launch {
@@ -120,6 +155,7 @@ class InAppBiometricFilter(
         dwellJob?.cancel()
         isCancelled = false
         isFailed = false
+        isFaceTimeout = false
         isSystemPromptShowing = false
         isFrontCameraInUse = false
         _status.value = BiometricStatus.IDLE

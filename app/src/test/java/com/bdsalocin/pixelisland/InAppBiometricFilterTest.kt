@@ -46,6 +46,9 @@ class InAppBiometricFilterTest {
         assertTrue(filter.isScreenOn)
         assertFalse(filter.isSystemPromptShowing)
         assertFalse(filter.isFrontCameraInUse)
+        assertFalse(filter.isCancelled)
+        assertFalse(filter.isFailed)
+        assertFalse(filter.isFaceTimeout)
     }
 
     @Test
@@ -102,12 +105,113 @@ class InAppBiometricFilterTest {
         filter.onFrontCameraAvailabilityChanged("0", inUse = true)
         assertEquals(BiometricStatus.SCANNING, filter.status.value)
 
-        // La caméra frontale se coupe dès que le visage est reconnu avec succès
+        // Authentification faciale validée : fermeture de la boîte système pendant le scan actif
+        filter.onSystemBiometricPromptChanged(false)
+        assertEquals(BiometricStatus.SUCCESS, filter.status.value)
+
+        // La coupure de caméra postérieure au succès n'interrompt pas l'animation de dwell
         filter.onFrontCameraAvailabilityChanged("0", inUse = false)
         assertEquals(BiometricStatus.SUCCESS, filter.status.value)
 
         // Après temporisation d'affichage (500 ms), bascule à IDLE
         advanceTimeBy(501L)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+    }
+
+    @Test
+    fun testFaceTimeoutWhilePromptShowingTransitionsDirectlyToIdleWithoutSuccess() = testScope.runTest {
+        filter.onScreenStateChanged(isKeyguardLocked = false, isScreenOn = true)
+        filter.onSystemBiometricPromptChanged(true)
+        filter.onFrontCameraAvailabilityChanged("0", inUse = true)
+        assertEquals(BiometricStatus.SCANNING, filter.status.value)
+
+        // Coupure caméra alors que la boîte reste ouverte (timeout ~5s ou repli empreinte)
+        filter.onFrontCameraAvailabilityChanged("0", inUse = false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+        assertTrue(filter.isFaceTimeout)
+
+        // Fermeture ultérieure de la boîte : ne doit JAMAIS déclencher SUCCESS
+        filter.onSystemBiometricPromptChanged(false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+        advanceTimeBy(501L)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+    }
+
+    @Test
+    fun testGestureCancellationViaCameraCutoffThenDismissal() = testScope.runTest {
+        filter.onScreenStateChanged(isKeyguardLocked = false, isScreenOn = true)
+        filter.onSystemBiometricPromptChanged(true)
+        filter.onFrontCameraAvailabilityChanged("0", inUse = true)
+        assertEquals(BiometricStatus.SCANNING, filter.status.value)
+
+        // Balayage retour ou tap extérieur coupant le capteur avant la fenêtre
+        filter.onFrontCameraAvailabilityChanged("0", inUse = false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+
+        filter.onSystemBiometricPromptChanged(false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+        advanceTimeBy(501L)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+    }
+
+    @Test
+    fun testConsecutiveRequestsResetTransientFlags() = testScope.runTest {
+        filter.onScreenStateChanged(isKeyguardLocked = false, isScreenOn = true)
+
+        // Première requête avec scan actif
+        filter.onSystemBiometricPromptChanged(true)
+        filter.onFrontCameraAvailabilityChanged("0", inUse = true)
+        assertEquals(BiometricStatus.SCANNING, filter.status.value)
+
+        // Annulation ou fermeture de la première boîte
+        filter.onBiometricCancelled()
+        filter.onSystemBiometricPromptChanged(false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+        assertFalse(filter.isFrontCameraInUse)
+        assertFalse(filter.isCancelled)
+        assertFalse(filter.isFailed)
+        assertFalse(filter.isFaceTimeout)
+
+        // Deuxième requête consécutive
+        filter.onSystemBiometricPromptChanged(true)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+
+        // Notification retardée de la session 1
+        filter.onFrontCameraAvailabilityChanged("0", inUse = false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+
+        // Caméra active pour la session 2
+        filter.onFrontCameraAvailabilityChanged("0", inUse = true)
+        assertEquals(BiometricStatus.SCANNING, filter.status.value)
+
+        // Validation réussie session 2
+        filter.onSystemBiometricPromptChanged(false)
+        assertEquals(BiometricStatus.SUCCESS, filter.status.value)
+        advanceTimeBy(501L)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+    }
+
+    @Test
+    fun testExplicitBiometricFailureTransitionsToIdleWithoutSuccess() = testScope.runTest {
+        filter.onScreenStateChanged(isKeyguardLocked = false, isScreenOn = true)
+        filter.onSystemBiometricPromptChanged(true)
+        filter.onFrontCameraAvailabilityChanged("0", inUse = true)
+        assertEquals(BiometricStatus.SCANNING, filter.status.value)
+
+        // Échec explicite (visage non reconnu, message d'accessibilité)
+        filter.onBiometricFailed()
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+        assertTrue(filter.isFailed)
+
+        // Coupure de caméra consécutive
+        filter.onFrontCameraAvailabilityChanged("0", inUse = false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+
+        // Fermeture de la boîte
+        filter.onSystemBiometricPromptChanged(false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+
+        advanceTimeBy(1000L)
         assertEquals(BiometricStatus.IDLE, filter.status.value)
     }
 
@@ -137,8 +241,12 @@ class InAppBiometricFilterTest {
         assertEquals(BiometricStatus.IDLE, filter.status.value)
         assertTrue(filter.isCancelled)
 
-        // Même si la caméra frontale se coupe ensuite, elle ne doit pas passer par SUCCESS
+        // Coupure caméra
         filter.onFrontCameraAvailabilityChanged("0", inUse = false)
+        assertEquals(BiometricStatus.IDLE, filter.status.value)
+
+        // Fermeture invite
+        filter.onSystemBiometricPromptChanged(false)
         assertEquals(BiometricStatus.IDLE, filter.status.value)
     }
 
@@ -156,16 +264,7 @@ class InAppBiometricFilterTest {
 
         filter.onFrontCameraAvailabilityChanged("0", inUse = false)
         assertEquals(BiometricStatus.IDLE, filter.status.value)
-    }
 
-    @Test
-    fun testPromptDismissalWhileScanningRevertsToIdle() {
-        filter.onScreenStateChanged(isKeyguardLocked = false, isScreenOn = true)
-        filter.onSystemBiometricPromptChanged(true)
-        filter.onFrontCameraAvailabilityChanged("0", inUse = true)
-        assertEquals(BiometricStatus.SCANNING, filter.status.value)
-
-        // Fermeture inopinée de la boîte sans validation
         filter.onSystemBiometricPromptChanged(false)
         assertEquals(BiometricStatus.IDLE, filter.status.value)
     }

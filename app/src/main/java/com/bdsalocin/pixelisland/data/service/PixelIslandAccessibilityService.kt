@@ -68,33 +68,137 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
 
+    private fun extractEventText(event: AccessibilityEvent?): String {
+        if (event == null) return ""
+        val sb = StringBuilder()
+        event.text?.forEach { charSeq ->
+            if (!charSeq.isNullOrBlank()) {
+                sb.append(charSeq).append(' ')
+            }
+        }
+        event.contentDescription?.let { desc ->
+            if (desc.isNotBlank()) {
+                sb.append(desc).append(' ')
+            }
+        }
+        return sb.toString().trim()
+    }
+
+    private fun isBiometricFailure(text: String): Boolean {
+        val lower = text.lowercase()
+        return lower.contains("not recognized") ||
+                lower.contains("non reconnu") ||
+                lower.contains("try again") ||
+                lower.contains("réessayez") ||
+                lower.contains("reessayez") ||
+                lower.contains("face not recognized") ||
+                lower.contains("visage non reconnu") ||
+                lower.contains("couldn't") ||
+                lower.contains("could not") ||
+                lower.contains("impossible de") ||
+                lower.contains("aucun visage") ||
+                lower.contains("no face") ||
+                lower.contains("délai expiré") ||
+                lower.contains("delai expire") ||
+                lower.contains("timeout") ||
+                lower.contains("timed out") ||
+                lower.contains("failed") ||
+                lower.contains("échec") ||
+                lower.contains("echec") ||
+                lower.contains("too dark") ||
+                lower.contains("trop sombre") ||
+                lower.contains("too bright") ||
+                lower.contains("trop lumineux") ||
+                lower.contains("recommencer") ||
+                lower.contains("sensor dirty") ||
+                lower.contains("capteur")
+    }
+
+    private fun isBiometricSuccess(text: String): Boolean {
+        val lower = text.lowercase()
+        val isNegated = lower.contains("not recognized") ||
+                lower.contains("non reconnu") ||
+                lower.contains("not authenticated") ||
+                lower.contains("non authentifié") ||
+                lower.contains("non authentifie")
+        if (isNegated) return false
+
+        return lower.contains("authenticated") ||
+                lower.contains("authentifié") ||
+                lower.contains("authentifie") ||
+                lower.contains("verified") ||
+                lower.contains("vérifié") ||
+                lower.contains("verifie") ||
+                lower.contains("confirmed") ||
+                lower.contains("confirmé") ||
+                lower.contains("confirme") ||
+                lower.contains("visage reconnu") ||
+                lower.contains("face recognized")
+    }
+
+    private fun isBiometricCancel(text: String): Boolean {
+        val lower = text.lowercase()
+        return lower.contains("cancel") ||
+                lower.contains("annul") ||
+                lower.contains("use password") ||
+                lower.contains("mot de passe") ||
+                lower.contains("use pin") ||
+                lower.contains("code pin") ||
+                lower.contains("pattern") ||
+                lower.contains("schéma") ||
+                lower.contains("schema")
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val container = (application as? PixelIslandApplication)?.appContainer ?: return
         val biometricRepo = container.biometricRepository as? BiometricRepositoryImpl ?: return
 
         val pkg = event?.packageName?.toString() ?: ""
         val cls = event?.className?.toString() ?: ""
+        val isSystemUi = pkg == "com.android.systemui" || pkg.endsWith("systemui")
 
         when (event?.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                if (pkg == "com.android.systemui" || pkg.endsWith("systemui")) {
+                if (isSystemUi) {
                     if (cls.contains("biometrics", ignoreCase = true) ||
                         cls.contains("AuthContainerView", ignoreCase = true) ||
                         cls.contains("BiometricPrompt", ignoreCase = true)) {
                         biometricRepo.onSystemBiometricPromptChanged(true)
                     }
+                    val text = extractEventText(event)
+                    if (text.isNotEmpty()) {
+                        if (isBiometricFailure(text)) {
+                            biometricRepo.onBiometricFailed()
+                        } else if (isBiometricSuccess(text)) {
+                            biometricRepo.onBiometricSuccess()
+                        }
+                    }
                 } else if (pkg.isNotEmpty() && !pkg.contains("pixelisland")) {
                     biometricRepo.onSystemBiometricPromptChanged(false)
                 }
             }
+            AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED,
+            AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED,
+            AccessibilityEvent.TYPE_ANNOUNCEMENT -> {
+                if (isSystemUi) {
+                    val text = extractEventText(event)
+                    if (text.isNotEmpty()) {
+                        if (isBiometricFailure(text)) {
+                            biometricRepo.onBiometricFailed()
+                        } else if (isBiometricSuccess(text)) {
+                            biometricRepo.onBiometricSuccess()
+                        }
+                    }
+                }
+            }
             AccessibilityEvent.TYPE_VIEW_CLICKED -> {
-                if (pkg == "com.android.systemui" || pkg.endsWith("systemui")) {
-                    val text = event.text?.joinToString(" ") ?: ""
-                    val desc = event.contentDescription?.toString() ?: ""
-                    if (text.contains("cancel", ignoreCase = true) ||
-                        text.contains("annul", ignoreCase = true) ||
-                        desc.contains("cancel", ignoreCase = true) ||
-                        desc.contains("annul", ignoreCase = true)) {
+                if (isSystemUi) {
+                    val text = extractEventText(event)
+                    if (isBiometricCancel(text)) {
+                        biometricRepo.onBiometricCancelled()
+                    } else if (text.isEmpty() && (cls.contains("AuthContainerView", ignoreCase = true) ||
+                            cls == "android.view.View" ||
+                            cls == "android.widget.FrameLayout")) {
                         biometricRepo.onBiometricCancelled()
                     }
                 }
@@ -114,7 +218,10 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         val info = serviceInfo ?: AccessibilityServiceInfo()
         info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or
                 AccessibilityEvent.TYPE_WINDOWS_CHANGED or
-                AccessibilityEvent.TYPE_VIEW_CLICKED
+                AccessibilityEvent.TYPE_VIEW_CLICKED or
+                AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED or
+                AccessibilityEvent.TYPE_NOTIFICATION_STATE_CHANGED or
+                AccessibilityEvent.TYPE_ANNOUNCEMENT
         info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
         info.flags = info.flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
         this.serviceInfo = info
