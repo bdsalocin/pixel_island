@@ -126,8 +126,8 @@ fun DynamicPillView(
     }
 
     val targetCornerRadius = when {
-        state.isExpanded -> 40.dp
         state.isFaceUnlockActive -> 28.dp
+        state.isExpanded -> 40.dp
         else -> 20.dp
     }
 
@@ -148,6 +148,7 @@ fun DynamicPillView(
     val coroutineScope = rememberCoroutineScope()
 
     var isDraggingCard by remember { mutableStateOf(false) }
+    var isOpeningCard by remember { mutableStateOf(false) }
     val velocityTracker = remember { VelocityTracker() }
 
     LaunchedEffect(targetTop.value, targetBottom.value, targetWidth.value, targetCornerRadius.value) {
@@ -160,12 +161,23 @@ fun DynamicPillView(
     }
 
     LaunchedEffect(state.isExpanded) {
-        if (!state.isExpanded && isDraggingCard) {
-            isDraggingCard = false
-            launch { pillTopAnim.animateTo(targetTop.value, pillSpringSpec) }
-            launch { pillBottomAnim.animateTo(targetBottom.value, pillSpringSpec) }
-            launch { pillWidthAnim.animateTo(targetWidth.value, pillSpringSpec) }
-            launch { pillCornerAnim.animateTo(targetCornerRadius.value, pillSpringSpec) }
+        if (state.isExpanded) {
+            isOpeningCard = true
+        } else {
+            isOpeningCard = false
+            if (isDraggingCard) {
+                isDraggingCard = false
+                launch { pillTopAnim.animateTo(targetTop.value, pillSpringSpec) }
+                launch { pillBottomAnim.animateTo(targetBottom.value, pillSpringSpec) }
+                launch { pillWidthAnim.animateTo(targetWidth.value, pillSpringSpec) }
+                launch { pillCornerAnim.animateTo(targetCornerRadius.value, pillSpringSpec) }
+            }
+        }
+    }
+
+    LaunchedEffect(pillBottomAnim.value, state.isExpanded) {
+        if (state.isExpanded && isOpeningCard && pillBottomAnim.value >= 237.5f) {
+            isOpeningCard = false
         }
     }
 
@@ -254,8 +266,8 @@ fun DynamicPillView(
                             IslandStage.EXPANDED_CARD -> {
                                 val track = state.mediaTrack
                                 val dragFraction = ((238f - pillBottomAnim.value) / 198f).coerceIn(0f, 1f)
-                                val dragContentScale = if (isDraggingCard) (1f - dragFraction * 0.12f).coerceIn(0.88f, 1f) else 1f
-                                val dragContentAlpha = if (isDraggingCard) (1f - dragFraction * 0.45f).coerceIn(0f, 1f) else 1f
+                                val dragContentScale = if (isOpeningCard) 1f else (1f - dragFraction * 0.12f).coerceIn(0.88f, 1f)
+                                val dragContentAlpha = if (isOpeningCard) 1f else (1f - dragFraction * 0.45f).coerceIn(0f, 1f)
 
                                 Column(
                                     modifier = Modifier

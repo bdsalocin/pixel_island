@@ -52,6 +52,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
     private var composeView: ComposeView? = null
     private lateinit var overlayLayoutParams: WindowManager.LayoutParams
     private var resizeJob: Job? = null
+    private var pendingTargetWidth: Int? = null
+    private var pendingTargetHeight: Int? = null
 
     private val baseFlags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
@@ -294,6 +296,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         if (isLandscape) {
             // Option 1 : Masquage total de la Dynamic Island en mode paysage pour libérer l'écran
             resizeJob?.cancel()
+            pendingTargetWidth = null
+            pendingTargetHeight = null
             rootLayout?.visibility = android.view.View.GONE
             overlayLayoutParams.width = 1
             overlayLayoutParams.height = 1
@@ -345,6 +349,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
         if (!sizeChanged) {
             resizeJob?.cancel()
+            pendingTargetWidth = null
+            pendingTargetHeight = null
         }
 
         if (sizeChanged || flagsChanged) {
@@ -353,6 +359,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
             if (needsBiggerWidth || needsBiggerHeight) {
                 resizeJob?.cancel()
+                pendingTargetWidth = null
+                pendingTargetHeight = null
                 // Agrandissement immédiat de la fenêtre overlay pour ne jamais rogner l'animation Compose
                 overlayLayoutParams.width = maxOf(overlayLayoutParams.width, targetWindowWidth)
                 overlayLayoutParams.height = maxOf(overlayLayoutParams.height, targetWindowHeight)
@@ -374,9 +382,16 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
                         } catch (_: Exception) {}
                     }
                 }
+                if (resizeJob?.isActive == true && pendingTargetWidth == targetWindowWidth && pendingTargetHeight == targetWindowHeight) {
+                    return
+                }
                 resizeJob?.cancel()
+                pendingTargetWidth = targetWindowWidth
+                pendingTargetHeight = targetWindowHeight
                 resizeJob = serviceScope.launch {
                     kotlinx.coroutines.delay(320)
+                    pendingTargetWidth = null
+                    pendingTargetHeight = null
                     overlayLayoutParams.width = targetWindowWidth
                     overlayLayoutParams.height = targetWindowHeight
                     overlayLayoutParams.flags = targetFlags
@@ -422,6 +437,8 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
 
     private fun cleanUp() {
         resizeJob?.cancel()
+        pendingTargetWidth = null
+        pendingTargetHeight = null
         serviceScope.cancel()
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
