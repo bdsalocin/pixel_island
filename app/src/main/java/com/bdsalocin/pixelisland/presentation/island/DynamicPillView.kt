@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bdsalocin.pixelisland.core.util.HapticFeedbackHelper
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import com.bdsalocin.pixelisland.presentation.island.components.ApplePlayPauseIcon
 import com.bdsalocin.pixelisland.presentation.island.components.AppleSkipNextIcon
@@ -279,12 +280,12 @@ fun DynamicPillView(
                                                     val shouldDismiss = (displacementDp >= 50f && velocityY < 800f) || velocityY <= -800f
 
                                                     coroutineScope.launch {
-                                                        isDraggingCard = false
                                                         if (shouldDismiss) {
+                                                            isDraggingCard = false
                                                             HapticFeedbackHelper.performConfirmationFeedback(context, view)
                                                             viewModel.collapseIsland()
                                                         } else {
-                                                            launch {
+                                                            val bJob = launch {
                                                                 pillBottomAnim.animateTo(
                                                                     targetValue = 238f,
                                                                     animationSpec = spring(
@@ -293,7 +294,7 @@ fun DynamicPillView(
                                                                     )
                                                                 )
                                                             }
-                                                            launch {
+                                                            val wJob = launch {
                                                                 pillWidthAnim.animateTo(
                                                                     targetValue = 384f,
                                                                     animationSpec = spring(
@@ -302,7 +303,7 @@ fun DynamicPillView(
                                                                     )
                                                                 )
                                                             }
-                                                            launch {
+                                                            val cJob = launch {
                                                                 pillCornerAnim.animateTo(
                                                                     targetValue = 40f,
                                                                     animationSpec = spring(
@@ -311,13 +312,14 @@ fun DynamicPillView(
                                                                     )
                                                                 )
                                                             }
+                                                            joinAll(bJob, wJob, cJob)
+                                                            isDraggingCard = false
                                                         }
                                                     }
                                                 },
                                                 onDragCancel = {
                                                     coroutineScope.launch {
-                                                        isDraggingCard = false
-                                                        launch {
+                                                        val bJob = launch {
                                                             pillBottomAnim.animateTo(
                                                                 targetValue = 238f,
                                                                 animationSpec = spring(
@@ -326,7 +328,7 @@ fun DynamicPillView(
                                                                 )
                                                             )
                                                         }
-                                                        launch {
+                                                        val wJob = launch {
                                                             pillWidthAnim.animateTo(
                                                                 targetValue = 384f,
                                                                 animationSpec = spring(
@@ -335,7 +337,7 @@ fun DynamicPillView(
                                                                 )
                                                             )
                                                         }
-                                                        launch {
+                                                        val cJob = launch {
                                                             pillCornerAnim.animateTo(
                                                                 targetValue = 40f,
                                                                 animationSpec = spring(
@@ -344,6 +346,8 @@ fun DynamicPillView(
                                                                 )
                                                             )
                                                         }
+                                                        joinAll(bJob, wJob, cJob)
+                                                        isDraggingCard = false
                                                     }
                                                 },
                                                 onVerticalDrag = { change, dragAmount ->

@@ -343,11 +343,16 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
         val sizeChanged = overlayLayoutParams.width != targetWindowWidth || overlayLayoutParams.height != targetWindowHeight
         val flagsChanged = overlayLayoutParams.flags != targetFlags
 
+        if (!sizeChanged) {
+            resizeJob?.cancel()
+        }
+
         if (sizeChanged || flagsChanged) {
             val needsBiggerWidth = targetWindowWidth > overlayLayoutParams.width
             val needsBiggerHeight = targetWindowHeight > overlayLayoutParams.height
 
             if (needsBiggerWidth || needsBiggerHeight) {
+                resizeJob?.cancel()
                 // Agrandissement immédiat de la fenêtre overlay pour ne jamais rogner l'animation Compose
                 overlayLayoutParams.width = maxOf(overlayLayoutParams.width, targetWindowWidth)
                 overlayLayoutParams.height = maxOf(overlayLayoutParams.height, targetWindowHeight)
