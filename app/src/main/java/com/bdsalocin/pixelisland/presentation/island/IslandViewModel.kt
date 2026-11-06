@@ -1,7 +1,9 @@
 package com.bdsalocin.pixelisland.presentation.island
 
+import android.app.KeyguardManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bdsalocin.pixelisland.domain.model.BiometricStatus
 import com.bdsalocin.pixelisland.domain.usecase.CalculateCutoutAnchorUseCase
 import com.bdsalocin.pixelisland.domain.usecase.ObserveActiveMediaUseCase
 import com.bdsalocin.pixelisland.domain.usecase.ObserveUnlockStateUseCase
@@ -25,7 +27,8 @@ class IslandViewModel(
     private val skipNextUseCase: SkipNextUseCase,
     private val skipPreviousUseCase: SkipPreviousUseCase,
     private val openMusicAppUseCase: OpenMusicAppUseCase,
-    private val seekToUseCase: SeekToUseCase
+    private val seekToUseCase: SeekToUseCase,
+    private val keyguardManager: KeyguardManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(IslandUiState())
@@ -90,6 +93,14 @@ class IslandViewModel(
     private fun observeBiometrics() {
         viewModelScope.launch {
             observeUnlockStateUseCase().collect { status ->
+                if (status != BiometricStatus.IDLE) {
+                    val isLocked = keyguardManager?.isKeyguardLocked ?: true
+                    if (!isLocked) {
+                        // R1: L'affichage du cadenas ne doit s'activer que si l'appareil est formellement verrouillé
+                        _uiState.update { it.copy(biometricStatus = BiometricStatus.IDLE) }
+                        return@collect
+                    }
+                }
                 _uiState.update { it.copy(biometricStatus = status) }
             }
         }

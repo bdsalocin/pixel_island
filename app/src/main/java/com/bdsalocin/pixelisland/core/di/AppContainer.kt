@@ -1,5 +1,6 @@
 package com.bdsalocin.pixelisland.core.di
 
+import android.app.KeyguardManager
 import android.content.Context
 import com.bdsalocin.pixelisland.data.repository.BiometricRepositoryImpl
 import com.bdsalocin.pixelisland.data.repository.DisplayCutoutRepositoryImpl
@@ -26,6 +27,10 @@ class AppContainer(private val context: Context) {
 
     val displayCutoutRepository: DisplayCutoutRepository by lazy {
         DisplayCutoutRepositoryImpl(context)
+    }
+
+    val keyguardManager: KeyguardManager? by lazy {
+        context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
     }
 
     // UseCases
@@ -71,7 +76,8 @@ class AppContainer(private val context: Context) {
             skipNextUseCase = skipNextUseCase,
             skipPreviousUseCase = skipPreviousUseCase,
             openMusicAppUseCase = openMusicAppUseCase,
-            seekToUseCase = seekToUseCase
+            seekToUseCase = seekToUseCase,
+            keyguardManager = keyguardManager
         )
     }
 }

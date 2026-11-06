@@ -208,7 +208,10 @@ fun DynamicPillView(
 
     val contentAlpha by animateFloatAsState(
         targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(durationMillis = if (isVisible) 180 else 100),
+        animationSpec = tween(
+            durationMillis = if (isVisible) 180 else 180,
+            easing = FastOutSlowInEasing
+        ),
         label = "ContentAlphaAnimation"
     )
 
@@ -252,8 +255,13 @@ fun DynamicPillView(
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.COMPACT_MUSIC -> {
-                                    fadeIn(animationSpec = tween(100, delayMillis = 180, easing = FastOutSlowInEasing))
-                                        .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
+                                    fadeIn(animationSpec = tween(140, delayMillis = 180, easing = FastOutSlowInEasing))
+                                        .togetherWith(fadeOut(animationSpec = tween(120, easing = FastOutSlowInEasing)))
+                                        .using(SizeTransform(clip = false) { _, _ -> snap() })
+                                }
+                                initialState == IslandStage.FACE_UNLOCK && targetState == IslandStage.HIDDEN -> {
+                                    fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing))
+                                        .togetherWith(fadeIn(animationSpec = tween(100)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 else -> {

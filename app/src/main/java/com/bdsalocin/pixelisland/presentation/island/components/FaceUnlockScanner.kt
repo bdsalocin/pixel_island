@@ -21,7 +21,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,8 +41,16 @@ fun FaceUnlockScanner(
     status: BiometricStatus,
     modifier: Modifier = Modifier
 ) {
-    val isUnlocked = status == BiometricStatus.SUCCESS || status == BiometricStatus.IDLE
-    // Couleur verte exclusive pour le cadenas en toute circonstance
+    var hasUnlocked by remember { mutableStateOf(false) }
+    LaunchedEffect(status) {
+        if (status == BiometricStatus.SUCCESS) {
+            hasUnlocked = true
+        } else if (status == BiometricStatus.SCANNING) {
+            hasUnlocked = false
+        }
+    }
+    val isUnlocked = status == BiometricStatus.SUCCESS || (hasUnlocked && status == BiometricStatus.IDLE)
+    // Couleur verte émeraude pour le cadenas Face ID
     val greenColor = Color(0xFF34D399)
 
     val transition = rememberInfiniteTransition(label = "FaceScanPulse")
