@@ -38,7 +38,7 @@ class IslandViewModelTest {
 
     private val mediaFlow = MutableSharedFlow<MediaTrack?>(replay = 1)
     private val biometricFlow = MutableStateFlow(BiometricStatus.IDLE)
-    private val cutoutFlow = MutableStateFlow(CutoutGeometry(0f, 0f, 0f, 0f))
+    private val cutoutFlow = MutableStateFlow(CutoutGeometry(0, 0, 0, 0))
 
     private val fakeMediaRepo = object : MediaRepository {
         override fun observeCurrentTrack(): Flow<MediaTrack?> = mediaFlow

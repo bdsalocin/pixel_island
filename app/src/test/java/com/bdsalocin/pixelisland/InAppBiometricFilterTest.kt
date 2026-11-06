@@ -22,11 +22,17 @@ class InAppBiometricFilterTest {
 
     @Before
     fun setUp() {
+        kotlinx.coroutines.Dispatchers.setMain(testDispatcher)
         filter = InAppBiometricFilter(
             frontCameraIds = setOf("0"),
             coroutineScope = testScope,
             successDwellMs = 500L
         )
+    }
+
+    @org.junit.After
+    fun tearDown() {
+        kotlinx.coroutines.Dispatchers.resetMain()
     }
 
     @Test

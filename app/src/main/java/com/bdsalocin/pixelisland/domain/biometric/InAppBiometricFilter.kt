@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 class InAppBiometricFilter(
     private val frontCameraIds: Set<String> = emptySet(),
-    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main.immediate + SupervisorJob()),
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob()),
     private val successDwellMs: Long = 500L
 ) {
     var isKeyguardLocked: Boolean = false

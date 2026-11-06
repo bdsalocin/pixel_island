@@ -40,9 +40,13 @@ jobs:
       - name: Surface Build Error
         if: failure()
         run: |
-          ERR=$(grep -E "(e: |error:|FAILED|Exception)" build_log.txt | tail -n 10 | tr '\r\n' '  ')
+          LOG_FILE="build_log.txt"
+          if [ -f "test_log.txt" ] && grep -q -E "(FAILED|Exception|FAILURE|e: )" test_log.txt; then
+            LOG_FILE="test_log.txt"
+          fi
+          ERR=$(grep -E "(e: |error:|FAILED|Exception|FAILURE)" "$LOG_FILE" 2>/dev/null | tail -n 10 | tr '\r\n' '  ')
           if [ -z "$ERR" ]; then
-            ERR=$(tail -n 20 build_log.txt | tr '\r\n' '  ')
+            ERR=$(tail -n 20 "$LOG_FILE" 2>/dev/null | tr '\r\n' '  ')
           fi
           echo "::error title=Gradle Error::$ERR"
 
