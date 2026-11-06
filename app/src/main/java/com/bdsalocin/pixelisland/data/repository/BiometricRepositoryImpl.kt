@@ -101,15 +101,8 @@ class BiometricRepositoryImpl(
 
             private fun triggerDismissal() {
                 if (dismissJob?.isActive == true || currentStatus == BiometricStatus.IDLE) return
-                val wasSuccess = (currentStatus == BiometricStatus.SUCCESS)
                 dismissJob = scope.launch {
-                    if (!wasSuccess) {
-                        // Si franchi directement sans attente sur l'écran verrouillé, afficher l'anse ouverte
-                        currentStatus = BiometricStatus.SUCCESS
-                        trySend(BiometricStatus.SUCCESS)
-                        delay(120)
-                    }
-                    // Rétraction immédiate vers le poinçon sans freeze artificiel
+                    // Rétraction immédiate vers le poinçon sans freeze artificiel sur le bureau
                     currentStatus = BiometricStatus.IDLE
                     trySend(BiometricStatus.IDLE)
                 }

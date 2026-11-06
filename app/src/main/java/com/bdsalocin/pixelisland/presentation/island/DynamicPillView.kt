@@ -310,7 +310,8 @@ fun DynamicPillView(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     FaceUnlockScanner(
-                                        status = state.biometricStatus
+                                        status = state.biometricStatus,
+                                        isUnlocked = state.isDeviceUnlocked
                                     )
                                 }
                             }

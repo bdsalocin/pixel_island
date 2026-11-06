@@ -93,14 +93,24 @@ class IslandViewModel(
     private fun observeBiometrics() {
         viewModelScope.launch {
             observeUnlockStateUseCase().collect { status ->
+                val isLocked = keyguardManager?.isKeyguardLocked == true
                 if (status != BiometricStatus.IDLE && _uiState.value.biometricStatus == BiometricStatus.IDLE) {
-                    val isLocked = keyguardManager?.isKeyguardLocked == true
                     if (!isLocked) {
                         // R1: L'affichage du cadenas ne doit s'activer que si l'appareil est formellement verrouillé
                         return@collect
                     }
                 }
-                _uiState.update { it.copy(biometricStatus = status) }
+                _uiState.update { current ->
+                    val unlocked = if (status == BiometricStatus.SCANNING) {
+                        false
+                    } else {
+                        (!isLocked && keyguardManager != null) || status == BiometricStatus.SUCCESS || current.isDeviceUnlocked
+                    }
+                    current.copy(
+                        biometricStatus = status,
+                        isDeviceUnlocked = unlocked
+                    )
+                }
             }
         }
     }
