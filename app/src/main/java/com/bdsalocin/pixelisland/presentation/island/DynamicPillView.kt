@@ -151,19 +151,33 @@ fun DynamicPillView(
 
     var isDraggingCard by remember { mutableStateOf(false) }
     var isOpeningCard by remember { mutableStateOf(false) }
+    var wasExpanded by remember { mutableStateOf(false) }
     val velocityTracker = remember { VelocityTracker() }
+
+    // Animation fluide calibrée à 260 ms pour le repli de la carte sans queue asymptotique
+    val collapseTweenSpec = tween<Float>(
+        durationMillis = 260,
+        easing = FastOutSlowInEasing
+    )
 
     LaunchedEffect(targetTop.value, targetBottom.value, targetWidth.value, targetCornerRadius.value) {
         if (!isDraggingCard) {
-            launch { pillTopAnim.animateTo(targetTop.value, pillSpringSpec) }
-            launch { pillBottomAnim.animateTo(targetBottom.value, pillSpringSpec) }
-            launch { pillWidthAnim.animateTo(targetWidth.value, pillSpringSpec) }
-            launch { pillCornerAnim.animateTo(targetCornerRadius.value, pillSpringSpec) }
+            val isCollapsingCard = (wasExpanded || pillWidthAnim.value > 200f) &&
+                    targetWidth.value == 180f && targetBottom.value == 40f
+            val animSpec = if (isCollapsingCard) collapseTweenSpec else pillSpringSpec
+            launch { pillTopAnim.animateTo(targetTop.value, animSpec) }
+            launch { pillBottomAnim.animateTo(targetBottom.value, animSpec) }
+            launch { pillWidthAnim.animateTo(targetWidth.value, animSpec) }
+            launch { pillCornerAnim.animateTo(targetCornerRadius.value, animSpec) }
+            if (isCollapsingCard) {
+                wasExpanded = false
+            }
         }
     }
 
     LaunchedEffect(state.isExpanded) {
         if (state.isExpanded) {
+            wasExpanded = true
             isOpeningCard = true
             snapshotFlow { pillBottomAnim.value }
                 .first { it >= 237.5f }
@@ -172,11 +186,15 @@ fun DynamicPillView(
             isOpeningCard = false
             if (isDraggingCard) {
                 isDraggingCard = false
-                launch { pillTopAnim.animateTo(targetTop.value, pillSpringSpec) }
-                launch { pillBottomAnim.animateTo(targetBottom.value, pillSpringSpec) }
-                launch { pillWidthAnim.animateTo(targetWidth.value, pillSpringSpec) }
-                launch { pillCornerAnim.animateTo(targetCornerRadius.value, pillSpringSpec) }
+                val isCollapsingCard = (wasExpanded || pillWidthAnim.value > 200f) &&
+                        targetWidth.value == 180f && targetBottom.value == 40f
+                val animSpec = if (isCollapsingCard) collapseTweenSpec else pillSpringSpec
+                launch { pillTopAnim.animateTo(targetTop.value, animSpec) }
+                launch { pillBottomAnim.animateTo(targetBottom.value, animSpec) }
+                launch { pillWidthAnim.animateTo(targetWidth.value, animSpec) }
+                launch { pillCornerAnim.animateTo(targetCornerRadius.value, animSpec) }
             }
+            wasExpanded = false
         }
     }
 
@@ -227,7 +245,7 @@ fun DynamicPillView(
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
                                 initialState == IslandStage.EXPANDED_CARD && targetState == IslandStage.COMPACT_MUSIC -> {
-                                    fadeIn(animationSpec = tween(100, delayMillis = 220, easing = FastOutSlowInEasing))
+                                    fadeIn(animationSpec = tween(100, delayMillis = 260, easing = FastOutSlowInEasing))
                                         .togetherWith(fadeOut(animationSpec = tween(90, easing = FastOutSlowInEasing)))
                                         .using(SizeTransform(clip = false) { _, _ -> snap() })
                                 }
