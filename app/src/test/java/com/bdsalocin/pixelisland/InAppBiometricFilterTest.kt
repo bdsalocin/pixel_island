@@ -2,11 +2,15 @@ package com.bdsalocin.pixelisland
 
 import com.bdsalocin.pixelisland.domain.biometric.InAppBiometricFilter
 import com.bdsalocin.pixelisland.domain.model.BiometricStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -22,7 +26,7 @@ class InAppBiometricFilterTest {
 
     @Before
     fun setUp() {
-        kotlinx.coroutines.Dispatchers.setMain(testDispatcher)
+        Dispatchers.setMain(testDispatcher)
         filter = InAppBiometricFilter(
             frontCameraIds = setOf("0"),
             coroutineScope = testScope,
@@ -30,9 +34,9 @@ class InAppBiometricFilterTest {
         )
     }
 
-    @org.junit.After
+    @After
     fun tearDown() {
-        kotlinx.coroutines.Dispatchers.resetMain()
+        Dispatchers.resetMain()
     }
 
     @Test
