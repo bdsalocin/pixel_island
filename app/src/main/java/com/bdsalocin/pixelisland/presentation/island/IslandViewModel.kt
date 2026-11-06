@@ -122,6 +122,10 @@ class IslandViewModel(
         collapseIsland()
     }
 
+    fun onThemeChanged() {
+        _uiState.update { it.copy(themeVersion = it.themeVersion + 1) }
+    }
+
     fun toggleExpand() {
         val now = System.currentTimeMillis()
         if (now - lastToggleTime < 250) return

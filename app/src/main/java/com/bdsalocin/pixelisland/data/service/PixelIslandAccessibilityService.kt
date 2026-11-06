@@ -631,6 +631,7 @@ class PixelIslandAccessibilityService : AccessibilityService(), LifecycleOwner, 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         val container = (application as? PixelIslandApplication)?.appContainer
+        container?.islandViewModel?.onThemeChanged()
         if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) {
             container?.islandViewModel?.collapseIsland()
         }

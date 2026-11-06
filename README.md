@@ -50,6 +50,7 @@ L'interface repose sur une capsule permanente affinée style iPhone 18 qui s'ét
 ### Points forts de l'expérience
 
 * **Capsule permanente style iPhone 18** : centrée sur l'axe vertical exact du capteur frontal avec des marges symétriques, elle préserve l'affichage de l'heure et des icônes système tout en s'effaçant automatiquement en mode paysage lors du visionnage de vidéos ou de sessions de jeu en plein écran.
+* **Couleurs dynamiques Material You en direct** : le cadenas Face ID et les barres d'égalisation musicale adoptent automatiquement la couleur d'accentuation choisie dans *Fond d'écran et style* sur votre Google Pixel, et se mettent à jour à chaud dès que vous changez de palette ou de fond d'écran.
 * **Lecteur multimédia universel** : compatible nativement avec Spotify, YouTube Music, Apple Music, Deezer, VLC et toute application publiant une `MediaSession` Android. Intègre la miniature haute définition de l'album, un égaliseur vectoriel animé en temps réel, des icônes vectorielles inspirées des SF Symbols et une barre de progression tactile interpolée.
 * **Cadenas Face ID 3D à 120 FPS** : dessiné directement sur le GPU via `Canvas` Jetpack Compose avec projection orthographique `3D` de l'anse à `26°` et micro rebond mécanique du boîtier lors du déverrouillage.
 * **Réveil OLED sans sursaut** : synchronisation fine avec l'état matériel de l'écran (`Display.STATE_ON` et préchauffage VSYNC) afin d'éviter tout clignotement lors de l'appui sur le bouton d'alimentation, accompagnée de la fermeture automatique de la carte multimédia au verrouillage du téléphone.
@@ -224,6 +225,7 @@ L'APK compilé est généré dans `app/build/outputs/apk/debug/app-debug.apk`.
 
 - [x] Ancrage matériel sur `DisplayCutout` et noir OLED absolu à `120 Hz`
 - [x] Capsule permanente affinée style iPhone 18 (`90 × 36 dp`)
+- [x] Synchronisation dynamique avec la palette Material You de l'appareil (*Fond d'écran et style*)
 - [x] Lecteur multimédia universel avec grande carte tactile, scrubbing et icônes vectorielles
 - [x] Cadenas Face ID `3D` animé sur l'écran de verrouillage sans sursaut au réveil OLED
 - [x] Détection Face ID contextuelle dans les applications protégées (`InAppBiometricFilter`)

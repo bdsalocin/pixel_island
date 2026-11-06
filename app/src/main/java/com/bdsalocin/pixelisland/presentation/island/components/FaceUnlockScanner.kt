@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.bdsalocin.pixelisland.domain.model.BiometricStatus
+import com.bdsalocin.pixelisland.presentation.theme.DefaultIslandAccentColor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
@@ -32,11 +33,9 @@ import kotlin.math.cos
 fun FaceUnlockScanner(
     status: BiometricStatus,
     isUnlocked: Boolean = (status == BiometricStatus.SUCCESS),
+    accentColor: Color = DefaultIslandAccentColor,
     modifier: Modifier = Modifier
 ) {
-    // Couleur verte émeraude style iOS Face ID
-    val greenColor = Color(0xFF34D399)
-
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
@@ -44,7 +43,7 @@ fun FaceUnlockScanner(
         // Cadenas vectoriel stable (aucun saut d'échelle) avec ouverture mécanique en direct
         AnimatedPadlock(
             isUnlocked = isUnlocked,
-            color = greenColor
+            color = accentColor
         )
     }
 }

@@ -88,6 +88,7 @@ import com.bdsalocin.pixelisland.presentation.island.components.AppleSkipNextIco
 import com.bdsalocin.pixelisland.presentation.island.components.AppleSkipPreviousIcon
 import com.bdsalocin.pixelisland.presentation.island.components.EqualizerBars
 import com.bdsalocin.pixelisland.presentation.island.components.FaceUnlockScanner
+import com.bdsalocin.pixelisland.presentation.theme.rememberDeviceAccentColor
 
 enum class IslandStage {
     FACE_UNLOCK,
@@ -102,6 +103,7 @@ fun DynamicPillView(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    val deviceAccentColor = rememberDeviceAccentColor(themeRefreshVersion = state.themeVersion)
 
     // Vérifie si une action requiert l'affichage de l'îlot
     val isVisible = state.isMusicActive || state.isFaceUnlockActive || state.isExpanded
@@ -373,7 +375,8 @@ fun DynamicPillView(
                                 ) {
                                     FaceUnlockScanner(
                                         status = state.biometricStatus,
-                                        isUnlocked = (state.biometricStatus == BiometricStatus.SUCCESS)
+                                        isUnlocked = (state.biometricStatus == BiometricStatus.SUCCESS),
+                                        accentColor = deviceAccentColor
                                     )
                                 }
                             }
@@ -573,7 +576,10 @@ fun DynamicPillView(
                                                 viewModel.toggleExpand()
                                             }
                                         ) {
-                                            EqualizerBars(isPlaying = track?.isPlaying == true)
+                                            EqualizerBars(
+                                                isPlaying = track?.isPlaying == true,
+                                                barColor = deviceAccentColor
+                                            )
                                         }
                                     }
 
@@ -719,7 +725,10 @@ fun DynamicPillView(
                                             .fillMaxHeight(),
                                         contentAlignment = Alignment.CenterEnd
                                     ) {
-                                        EqualizerBars(isPlaying = state.mediaTrack?.isPlaying == true)
+                                        EqualizerBars(
+                                            isPlaying = state.mediaTrack?.isPlaying == true,
+                                            barColor = deviceAccentColor
+                                        )
                                     }
                                 }
                             }

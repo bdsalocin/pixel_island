@@ -22,12 +22,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.bdsalocin.pixelisland.presentation.theme.DefaultIslandAccentColor
 
 @Composable
 fun EqualizerBars(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
-    barColor: Color = Color(0xFF34D399) // Vert émeraude vibrant
+    barColor: Color = DefaultIslandAccentColor
 ) {
     val transition = rememberInfiniteTransition(label = "EqualizerAnimation")
 
