@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Dynamic Island pill container (54dp x 22dp, corner radius 11dp, centered at 54, 54) -->
+    <path
+        android:fillColor="#000000"
+        android:strokeColor="#1E293B"
+        android:strokeWidth="1.2"
+        android:pathData="M38,43 L70,43 A11,11 0 0,1 70,65 L38,65 A11,11 0 0,1 38,43 Z" />
+
+    <!-- Google Pixel 8 Pro camera punch hole cutout (radius 4.5dp, centered at 39, 54) -->
+    <path
+        android:fillColor="#0D1117"
+        android:strokeColor="#1E293B"
+        android:strokeWidth="0.8"
+        android:pathData="M39,49.5 A4.5,4.5 0 1,1 39,58.5 A4.5,4.5 0 1,1 39,49.5 Z" />
+
+    <!-- Optical lens reflection highlight -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M37.5,51.5 A1,1 0 1,1 37.5,53.5 A1,1 0 1,1 37.5,51.5 Z" />
+
+    <!-- Equalizer audio wave bars (x=64, 68, 72 dp) -->
+    <path
+        android:strokeColor="#34D399"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M64,51 V57" />
+    <path
+        android:strokeColor="#34D399"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M68,49 V59" />
+    <path
+        android:strokeColor="#34D399"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:pathData="M72,50.5 V57.5" />
+
+</vector>
